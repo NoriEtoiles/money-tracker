@@ -1,0 +1,40 @@
+{
+  "project": "Money Tracker",
+  "strategy": "web-first mobile-ready manual-first privacy-first",
+  "mvp_p0": [
+    "auth",
+    "accounts",
+    "transactions",
+    "categories",
+    "dashboard",
+    "budgets",
+    "reports",
+    "export",
+    "authorization isolation"
+  ],
+  "deferred": [
+    "bank sync",
+    "OCR",
+    "AI insight",
+    "shared finance",
+    "investment tracking",
+    "full mobile app"
+  ],
+  "implementation_order": [
+    "foundation",
+    "auth",
+    "onboarding",
+    "accounts",
+    "categories_tags",
+    "transactions",
+    "transfers",
+    "budgets",
+    "dashboard",
+    "reports",
+    "recurring",
+    "csv_import",
+    "csv_export",
+    "settings_privacy",
+    "production_hardening"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "money-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@10.0.0",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:api": "npm run dev --workspace @money-tracker/api",
+    "dev:web": "npm run dev --workspace @money-tracker/web",
+    "db:generate": "npm run db:generate --workspace @money-tracker/api",
+    "db:migrate": "npm run db:migrate --workspace @money-tracker/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String        @unique
+  passwordHash    String?       @map("password_hash")
+  displayName     String        @map("display_name")
+  defaultCurrency String        @default("IDR") @map("default_currency") @db.Char(3)
+  locale          String        @default("id-ID")
+  timezone        String        @default("Asia/Jakarta")
+  status          String        @default("active")
+  onboardingState Json          @default("{}") @map("onboarding_state")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  sessions        Session[]
+  auditEvents     AuditEvent[]
+  categories      Category[]
+  accounts        Account[]
+  tags            Tag[]
+  transactions    Transaction[]
+
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipAddress        String?   @map("ip_address") @db.Inet
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user             User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId], map: "idx_sessions_user_id")
+  @@map("sessions")
+}
+
+model AuditEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  eventType  String   @map("event_type")
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json     @default("{}")
+  ipAddress  String?  @map("ip_address") @db.Inet
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_audit_events_user_created")
+  @@map("audit_events")
+}
+
+model Category {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  parentId     String?       @map("parent_id") @db.Uuid
+  name         String
+  kind         String
+  colorToken   String?       @map("color_token")
+  iconToken    String?       @map("icon_token")
+  sortOrder    Int           @default(0) @map("sort_order")
+  archivedAt   DateTime?     @map("archived_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  user         User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parent       Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children     Category[]    @relation("CategoryHierarchy")
+  transactions Transaction[]
+
+  @@unique([userId, parentId, name])
+  @@index([userId], map: "idx_categories_user_id")
+  @@index([parentId], map: "idx_categories_parent_id")
+  @@map("categories")
+}
+
+model Account {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  name              String
+  type              String
+  currency          String        @default("IDR") @db.Char(3)
+  institutionName   String?       @map("institution_name")
+  initialBalance    Decimal       @default(0) @map("initial_balance") @db.Decimal(18, 4)
+  currentBalance    Decimal       @default(0) @map("current_balance") @db.Decimal(18, 4)
+  includeInNetWorth Boolean       @default(true) @map("include_in_net_worth")
+  sortOrder         Int           @default(0) @map("sort_order")
+  archivedAt        DateTime?     @map("archived_at") @db.Timestamptz(6)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt         DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  user              User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactions      Transaction[]
+
+  @@index([userId], map: "idx_accounts_user_id")
+  @@index([userId, type], map: "idx_accounts_user_type")
+  @@map("accounts")
+}
+
+model Tag {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  name       String
+  colorToken String?  @map("color_token")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user       User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+model Transaction {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  accountId       String    @map("account_id") @db.Uuid
+  categoryId      String?   @map("category_id") @db.Uuid
+  transferGroupId String?   @map("transfer_group_id") @db.Uuid
+  transferSide    String?   @map("transfer_side")
+  type            String
+  amount          Decimal   @db.Decimal(18, 4)
+  currency        String    @db.Char(3)
+  merchant        String?
+  note            String?
+  transactionAt   DateTime  @map("transaction_at") @db.Timestamptz(6)
+  status          String    @default("posted")
+  source          String    @default("manual")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
+  user            User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  account         Account   @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([userId, transactionAt(sort: Desc)], map: "idx_transactions_user_date")
+  @@index([accountId, transactionAt(sort: Desc)], map: "idx_transactions_account_date")
+  @@index([categoryId, transactionAt(sort: Desc)], map: "idx_transactions_category_date")
+  @@index([userId, transferGroupId], map: "idx_transactions_user_transfer_group")
+  @@index([transferGroupId, transferSide], map: "idx_transactions_transfer_group_side")
+  @@map("transactions")
+}
