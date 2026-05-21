@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 7:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 8:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -26,6 +26,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 7:
 - Step 5 Categories and Tags: backend CRUD, web UI, and reusable selectors done.
 - Step 6 Transactions: income/expense CRUD, list UI, form UI, soft delete, account balance updates, unit tests, and database verification done.
 - Step 7 Transfers: internal transfer CRUD, linked transfer legs, transfer UI, transaction endpoint guards, and transfer unit tests done.
+- Step 8 Budgets: monthly budget table, guarded budget CRUD, currency-specific spent calculation, threshold warnings, budget UI, and unit tests done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -43,7 +44,8 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - Transaction account balance updates on create/update/delete.
 - Transfer API/UI: grouped internal transfers between two user-owned same-currency accounts.
 - Transfer create/update/delete updates both account balances atomically and soft-deletes both linked legs.
-- API/docs updated for implemented Step 6 contracts.
+- API/docs updated for implemented ledger, transfer, and budget contracts.
+- Budget API/UI: monthly category budgets with explicit currency, create/update/archive behavior, spent/remaining/progress calculation, and threshold warning state.
 
 ## 5. Important Files
 
@@ -51,15 +53,19 @@ Backend:
 - `apps/api/prisma/schema.prisma`
 - `apps/api/prisma/migrations/20260517040000_transactions/migration.sql`
 - `apps/api/src/modules/transactions/*`
+- `apps/api/src/modules/budgets/*`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
+- `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
 
 Frontend:
 - `apps/web/src/features/app/app-shell.tsx`
 - `apps/web/src/features/transactions/transactions-page.tsx`
 - `apps/web/src/features/transfers/transfers-page.tsx`
+- `apps/web/src/features/budgets/budgets-page.tsx`
 - `apps/web/src/lib/api/transactions.ts`
 - `apps/web/src/lib/api/transfers.ts`
+- `apps/web/src/lib/api/budgets.ts`
 - Existing account/category/tag feature files and selectors
 
 Docs:
@@ -82,6 +88,9 @@ Docs:
 - Transaction tags and `budgetImpact` are explicitly deferred.
 - Category kind must match transaction type.
 - Archived/deleted accounts and categories cannot be used for new or updated transactions.
+- Budgets are strictly monthly: `period_start` must be the first day of the month and `period_end` is derived as the first day of the next month.
+- Budget currency is explicit and budget spending only includes same-currency, non-transfer, non-deleted expense transactions.
+- Budget uniqueness is `(user_id, category_id, period_start, currency)`; creating the same archived identity reactivates it, while update collisions are rejected.
 - Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before production hardening.
 
 ## 7. Current Unfinished Work
@@ -89,7 +98,7 @@ Docs:
 - Create-first-account onboarding flow polish.
 - Database-backed integration tests for user-owned authorization isolation.
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
-- Budgets, dashboard, reports, recurring rules, import/export, and settings/privacy are not implemented.
+- Dashboard, reports, recurring rules, import/export, and settings/privacy are not implemented.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
 
@@ -131,19 +140,49 @@ Docs:
   - API tests passed: 28 tests.
   - Web tests passed: 1 test.
   - `npm.cmd run build` passed.
+- Step 8 adds migration `20260517060000_budgets` and should be verified with the standard command sequence before the next checkpoint.
+- Final Step 8 Budgets MVP manual QA result:
+  - Step 8 Budgets MVP is complete.
+  - A small runtime bug was found during smoke testing:
+    - `BudgetsModule` initially did not import `AuthModule`.
+    - Budget endpoints failed because `JwtAuthGuard` could not resolve `TokenService`.
+    - This was fixed by importing `AuthModule` in `BudgetsModule`.
+    - `npm.cmd run typecheck` and `npm.cmd run test` passed after the fix.
+  - Manual smoke test passed:
+    - Budgets tab appears.
+    - Login with test account works.
+    - Create budget for expense category works.
+    - Income category budget is rejected with `400`.
+    - Normal budget amount works.
+    - Progress/spent/remaining display correctly.
+    - Expense transaction in the same category increases `spentAmount`.
+    - Income transaction does not affect `spentAmount`.
+    - Transfers do not affect `spentAmount`.
+    - Deleted expense transaction decreases/reverses `spentAmount`.
+    - Different budget currencies do not mix spending.
+    - Edit amount/threshold/month/currency works.
+    - Archive budget works.
+    - Recreate same category+month+currency after archive reactivates/updates the same budget instead of creating duplicates.
+  - Current local servers:
+    - Web: `http://localhost:3000`
+    - API health: `http://localhost:3001/api/v1/health`
+  - It is safe to commit Step 8 after final validation passes.
+  - It is safe to start Step 9 Dashboard in a fresh Codex session after committing.
 - Previous dev server log files may exist (`web.server.log`, `web.server.err.log`, etc.) and are not meaningful source artifacts.
 - `.env` files exist locally for development and are ignored by `.gitignore`; do not commit secrets.
 - Some tests are unit-only; authorization isolation still needs database-backed integration tests.
 
 ## 9. Next Recommended Task
 
-Step 7 Transfers is complete. It is safe to start the next implementation step in a fresh session. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 8:
+Step 8 Budgets is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 9:
 
-1. Create budget table and migration.
-2. Implement budget CRUD.
-3. Calculate category spending from non-transfer expense transactions.
-4. Add budget progress UI.
-5. Add threshold warning behavior.
+1. Create dashboard endpoint.
+2. Calculate total balance.
+3. Calculate monthly income and expense.
+4. Calculate net cashflow.
+5. Calculate budget risk from active monthly budgets.
+6. Add recent transactions.
+7. Add dashboard UI.
 
 ## 10. Exact Prompt for Next Codex Session
 
@@ -153,16 +192,16 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Implement Step 8: Budgets. Step 7 Transfers is complete.
+Implement Step 9: Dashboard. Step 8 Budgets is complete.
 
 Requirements:
 - Use plan mode first.
 - Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build`.
-- Do not implement dashboard, reports, recurring transactions, import/export, bank sync, OCR, AI insight, attachments, shared finance, or investments.
+- Do not implement reports, recurring transactions, import/export, bank sync, OCR, AI insight, attachments, shared finance, or investments.
 - Build on the existing Step 6 transaction ledger and Step 7 transfers.
-- Calculate budget spending from non-transfer expense transactions only.
+- Build on the existing Step 8 budget spent/risk calculations.
 - Keep all user-owned behavior scoped through the authenticated session.
 - Use decimal-safe money handling only.
-- Add tests for budget CRUD and spent calculation.
+- Add tests for dashboard summary calculations.
 - Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
 ```

@@ -621,21 +621,96 @@ Response:
 
 ### GET `/api/v1/budgets`
 
+Protected. Lists active budgets for a monthly period. `periodStart` is required and
+must be the first day of a month. `currency` is optional and, when provided, must
+be three uppercase letters.
+
+Query params:
+- `periodStart`
+- `currency`
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "category": {
+        "id": "uuid",
+        "name": "Food"
+      },
+      "periodStart": "2026-05-01",
+      "periodEnd": "2026-06-01",
+      "amount": "1500000.0000",
+      "currency": "IDR",
+      "thresholdPercentage": "80.00",
+      "spentAmount": "415000.0000",
+      "remainingAmount": "1085000.0000",
+      "spentPercentage": "27.67",
+      "isThresholdExceeded": false,
+      "status": "active"
+    }
+  ]
+}
+```
+
 ### POST `/api/v1/budgets`
+
+Protected. Creates a monthly budget for an expense category. `periodEnd` is derived
+as the first day of the next month. Creating an archived same category/month/currency
+budget reactivates and updates it; creating an active duplicate returns a conflict.
 
 Request:
 
 ```json
 {
   "categoryId": "uuid",
-  "periodType": "monthly",
   "periodStart": "2026-05-01",
-  "periodEnd": "2026-05-31",
-  "limitAmount": "1500000.00",
+  "amount": "1500000.00",
   "currency": "IDR",
-  "alertThreshold": 80
+  "thresholdPercentage": 80
 }
 ```
+
+Response matches a budget item from `GET /api/v1/budgets`.
+
+### PATCH `/api/v1/budgets/{budgetId}`
+
+Protected. Budget lookup is scoped by authenticated user. Updating to another
+existing category/month/currency identity, active or archived, returns a conflict.
+
+Request:
+
+```json
+{
+  "categoryId": "uuid",
+  "periodStart": "2026-06-01",
+  "amount": "1750000.00",
+  "currency": "IDR",
+  "thresholdPercentage": 85
+}
+```
+
+Response matches a budget item from `GET /api/v1/budgets`.
+
+### DELETE `/api/v1/budgets/{budgetId}`
+
+Protected. Archives the budget.
+
+Response:
+
+```json
+{
+  "success": true,
+  "mode": "archived"
+}
+```
+
+Budget spent calculation includes only transactions with the same user, category,
+and currency where `type = "expense"`, `deletedAt = null`, `isDeleted = false`,
+`transferGroupId = null`, `transferSide = null`, `transactionAt >= periodStart`,
+and `transactionAt < periodEnd`.
 
 ## Recurring Rules
 

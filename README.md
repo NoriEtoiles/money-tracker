@@ -119,6 +119,8 @@ This foundation includes:
 - transaction list and create/edit/delete UI
 - internal transfer API with linked transaction legs and balance updates
 - transfer list and create/edit/delete UI
+- monthly budget CRUD API with currency-specific spent calculations
+- budget list and create/edit/archive UI with progress warnings
 - lint/typecheck/test scripts
 - basic CI workflow
 
@@ -149,14 +151,19 @@ Core endpoints:
 - `POST /api/v1/transfers`
 - `PATCH /api/v1/transfers/{transferGroupId}`
 - `DELETE /api/v1/transfers/{transferGroupId}`
+- `GET /api/v1/budgets`
+- `POST /api/v1/budgets`
+- `PATCH /api/v1/budgets/{budgetId}`
+- `DELETE /api/v1/budgets/{budgetId}`
 
 ## Next Recommended Task
 
-Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 8: Budgets**:
-- budget table
-- budget CRUD
-- spent calculation
-- budget progress UI
-- threshold warning
+Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 9: Dashboard**:
+- total balance
+- income month
+- expense month
+- net cashflow
+- budget risk
+- recent transactions
 
 Keep each task small, tested, and aligned with `AGENTS.md`.

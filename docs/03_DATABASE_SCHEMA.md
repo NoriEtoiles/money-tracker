@@ -194,23 +194,38 @@ implemented schema does not connect tags to transactions yet.
 ```sql
 CREATE TABLE budgets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id),
-  category_id UUID NOT NULL REFERENCES categories(id),
-  period_type TEXT NOT NULL DEFAULT 'monthly',
+  user_id UUID NOT NULL,
+  category_id UUID NOT NULL,
   period_start DATE NOT NULL,
   period_end DATE NOT NULL,
-  limit_amount NUMERIC(18,4) NOT NULL,
-  currency CHAR(3) NOT NULL DEFAULT 'IDR',
-  rollover_mode TEXT NOT NULL DEFAULT 'none',
-  alert_threshold NUMERIC(5,2) NOT NULL DEFAULT 80,
+  amount NUMERIC(18,4) NOT NULL,
+  currency CHAR(3) NOT NULL,
+  threshold_percentage NUMERIC(5,2) NOT NULL DEFAULT 80,
   status TEXT NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(user_id, category_id, period_start, period_end)
+  CONSTRAINT fk_budgets_user_id
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT fk_budgets_category_id
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  UNIQUE(user_id, category_id, period_start, currency),
+  CHECK (amount > 0),
+  CHECK (threshold_percentage >= 1 AND threshold_percentage <= 100),
+  CHECK (currency ~ '^[A-Z]{3}$'),
+  CHECK (period_end > period_start),
+  CHECK (status IN ('active', 'archived'))
 );
 
-CREATE INDEX idx_budgets_user_period ON budgets(user_id, period_start, period_end);
+CREATE INDEX idx_budgets_user_period_currency ON budgets(user_id, period_start, currency);
 ```
+
+Budgets are strictly monthly. The API accepts `period_start` only for create/update;
+the backend validates it is the first day of a month and derives `period_end` as
+the first day of the next month. Budget spending only includes active, non-transfer
+expense transactions in the same category and currency where
+`transaction_at >= period_start AND transaction_at < period_end`.
 
 ### recurring_rules
 

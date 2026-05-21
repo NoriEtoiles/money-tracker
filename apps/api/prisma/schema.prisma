@@ -26,6 +26,7 @@ model User {
   accounts        Account[]
   tags            Tag[]
   transactions    Transaction[]
+  budgets         Budget[]
 
   @@map("users")
 }
@@ -78,6 +79,7 @@ model Category {
   parent       Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children     Category[]    @relation("CategoryHierarchy")
   transactions Transaction[]
+  budgets      Budget[]
 
   @@unique([userId, parentId, name])
   @@index([userId], map: "idx_categories_user_id")
@@ -150,4 +152,24 @@ model Transaction {
   @@index([userId, transferGroupId], map: "idx_transactions_user_transfer_group")
   @@index([transferGroupId, transferSide], map: "idx_transactions_transfer_group_side")
   @@map("transactions")
+}
+
+model Budget {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String   @map("user_id") @db.Uuid
+  categoryId          String   @map("category_id") @db.Uuid
+  periodStart         DateTime @map("period_start") @db.Date
+  periodEnd           DateTime @map("period_end") @db.Date
+  amount              Decimal  @db.Decimal(18, 4)
+  currency            String   @db.Char(3)
+  thresholdPercentage Decimal  @default(80) @map("threshold_percentage") @db.Decimal(5, 2)
+  status              String   @default("active")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_budgets_user_id")
+  category            Category @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_budgets_category_id")
+
+  @@unique([userId, categoryId, periodStart, currency], map: "ux_budgets_user_category_period_currency")
+  @@index([userId, periodStart, currency], map: "idx_budgets_user_period_currency")
+  @@map("budgets")
 }

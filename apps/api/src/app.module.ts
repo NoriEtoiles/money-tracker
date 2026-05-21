@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { validateEnv } from "./config/env.validation";
 import { AccountsModule } from "./modules/accounts/accounts.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { BudgetsModule } from "./modules/budgets/budgets.module";
 import { HealthModule } from "./modules/health/health.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { TagsModule } from "./modules/tags/tags.module";
@@ -21,6 +22,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     PrismaModule,
     AuthModule,
     AccountsModule,
+    BudgetsModule,
     OnboardingModule,
     TagsModule,
     TransactionsModule,
