@@ -6,6 +6,7 @@ import { AccountsPage } from "../accounts/accounts-page";
 import { AuthPanel } from "../auth/auth-panel";
 import { BudgetsPage } from "../budgets/budgets-page";
 import { CategoriesPage } from "../categories/categories-page";
+import { DashboardPage } from "../dashboard/dashboard-page";
 import { TagsPage } from "../tags/tags-page";
 import { TransactionsPage } from "../transactions/transactions-page";
 import { TransfersPage } from "../transfers/transfers-page";
@@ -17,7 +18,7 @@ type SessionState = {
   refreshToken: string;
 };
 
-type AppTab = "accounts" | "budgets" | "categories" | "tags" | "transactions" | "transfers";
+type AppTab = "accounts" | "budgets" | "categories" | "dashboard" | "tags" | "transactions" | "transfers";
 
 const accessTokenKey = "money-tracker-access-token";
 const refreshTokenKey = "money-tracker-refresh-token";
@@ -25,6 +26,7 @@ const displayNameKey = "money-tracker-display-name";
 const emailKey = "money-tracker-email";
 
 const appTabs: Array<{ label: string; value: AppTab }> = [
+  { label: "Dashboard", value: "dashboard" },
   { label: "Accounts", value: "accounts" },
   { label: "Transactions", value: "transactions" },
   { label: "Transfers", value: "transfers" },
@@ -36,7 +38,7 @@ const appTabs: Array<{ label: string; value: AppTab }> = [
 export function AppShell(): React.ReactElement {
   const [session, setSession] = useState<SessionState | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<AppTab>("accounts");
+  const [activeTab, setActiveTab] = useState<AppTab>("dashboard");
 
   useEffect(() => {
     const accessToken = window.localStorage.getItem(accessTokenKey);
@@ -120,6 +122,18 @@ export function AppShell(): React.ReactElement {
       ))}
     </nav>
   );
+
+  if (activeTab === "dashboard") {
+    return (
+      <DashboardPage
+        accessToken={session.accessToken}
+        currentUser={currentUser}
+        message={message}
+        navigation={navigation}
+        onLogout={() => void handleLogout()}
+      />
+    );
+  }
 
   if (activeTab === "categories") {
     return (

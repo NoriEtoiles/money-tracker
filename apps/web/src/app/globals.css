@@ -101,6 +101,78 @@ a {
   margin-top: 24px;
 }
 
+.dashboard-toolbar {
+  align-items: flex-end;
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.dashboard-month-field {
+  min-width: 220px;
+}
+
+.dashboard-summary-card .panel-heading {
+  margin-bottom: 12px;
+}
+
+.dashboard-metric-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.dashboard-metric-list div {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-metric-list dt {
+  margin: 0;
+}
+
+.dashboard-metric-list dd {
+  font-size: 20px;
+}
+
+.dashboard-layout {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 24px;
+}
+
+.dashboard-section {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-section .panel-heading {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  padding-bottom: 12px;
+}
+
+.dashboard-section .panel-heading span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dashboard-empty,
+.dashboard-inline-empty {
+  margin-top: 24px;
+}
+
+.dashboard-inline-empty {
+  margin-top: 0;
+}
+
+.dashboard-warning-row {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+}
+
 .metric {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -486,6 +558,7 @@ button:disabled {
   }
 
   .workspace-grid,
+  .dashboard-layout,
   .account-row,
   .resource-row,
   .account-edit-form,
@@ -493,6 +566,11 @@ button:disabled {
   .tag-edit-form,
   .filter-panel {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .balance-block,

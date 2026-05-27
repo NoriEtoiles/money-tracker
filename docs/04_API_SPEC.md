@@ -742,24 +742,77 @@ Request:
 
 ### GET `/api/v1/reports/dashboard`
 
+Protected. Returns the read-only Dashboard MVP payload for one monthly period.
+Dashboard money totals are grouped by currency because FX conversion is not part
+of the MVP.
+
+Query params:
+- `periodStart` optional `YYYY-MM-DD`; when provided it must be the first day of
+  a month. Defaults to the current month.
+- `recentLimit` optional number, default `5`, max `10`.
+
 Response:
 
 ```json
 {
-  "totalBalance": "5000000.00",
-  "monthlyIncome": "8000000.00",
-  "monthlyExpense": "3500000.00",
-  "netCashflow": "4500000.00",
-  "budgetRisk": [
+  "periodStart": "2026-05-01",
+  "periodEnd": "2026-06-01",
+  "summaryByCurrency": [
     {
-      "categoryId": "uuid",
-      "categoryName": "Food",
-      "spentPercentage": 82
+      "currency": "IDR",
+      "totalBalance": "5000000.0000",
+      "monthlyIncome": "8000000.0000",
+      "monthlyExpense": "3500000.0000",
+      "netCashflow": "4500000.0000"
     }
   ],
-  "recentTransactions": []
+  "budgetSummary": {
+    "activeBudgetCount": 2,
+    "thresholdExceededCount": 1,
+    "warnings": [
+      {
+        "budgetId": "uuid",
+        "category": {
+          "id": "uuid",
+          "name": "Food"
+        },
+        "amount": "1500000.0000",
+        "currency": "IDR",
+        "spentAmount": "1230000.0000",
+        "remainingAmount": "270000.0000",
+        "spentPercentage": "82.00",
+        "thresholdPercentage": "80.00",
+        "isThresholdExceeded": true
+      }
+    ]
+  },
+  "recentTransactions": [
+    {
+      "id": "uuid",
+      "type": "expense",
+      "amount": "85000.0000",
+      "currency": "IDR",
+      "account": {
+        "id": "uuid",
+        "name": "Cash"
+      },
+      "category": {
+        "id": "uuid",
+        "name": "Food"
+      },
+      "merchant": "Warung Makan",
+      "status": "posted",
+      "transactionAt": "2026-05-16T08:30:00.000Z"
+    }
+  ]
 }
 ```
+
+Dashboard income/expense and recent transactions include only the authenticated
+user's normal income/expense rows in the selected period where `deletedAt = null`,
+`isDeleted = false`, `transferGroupId = null`, and `transferSide = null`. Recent
+dashboard transactions intentionally do not include notes. Budget warnings use
+the same spent calculation rules as `GET /api/v1/budgets`.
 
 ### GET `/api/v1/reports/spending`
 

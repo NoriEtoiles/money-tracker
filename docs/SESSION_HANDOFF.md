@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 8:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 9:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -27,6 +27,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 8:
 - Step 6 Transactions: income/expense CRUD, list UI, form UI, soft delete, account balance updates, unit tests, and database verification done.
 - Step 7 Transfers: internal transfer CRUD, linked transfer legs, transfer UI, transaction endpoint guards, and transfer unit tests done.
 - Step 8 Budgets: monthly budget table, guarded budget CRUD, currency-specific spent calculation, threshold warnings, budget UI, and unit tests done.
+- Step 9 Dashboard: guarded dashboard endpoint, per-currency balance/cashflow summary, budget warnings, recent transactions, dashboard UI, and unit tests done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -46,6 +47,7 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - Transfer create/update/delete updates both account balances atomically and soft-deletes both linked legs.
 - API/docs updated for implemented ledger, transfer, and budget contracts.
 - Budget API/UI: monthly category budgets with explicit currency, create/update/archive behavior, spent/remaining/progress calculation, and threshold warning state.
+- Dashboard API/UI: read-only monthly dashboard with per-currency total balance, income, expense, net cashflow, Step 8-compatible budget warnings, and recent normal transactions without notes.
 
 ## 5. Important Files
 
@@ -54,6 +56,7 @@ Backend:
 - `apps/api/prisma/migrations/20260517040000_transactions/migration.sql`
 - `apps/api/src/modules/transactions/*`
 - `apps/api/src/modules/budgets/*`
+- `apps/api/src/modules/reports/*`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
 - `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
@@ -63,9 +66,11 @@ Frontend:
 - `apps/web/src/features/transactions/transactions-page.tsx`
 - `apps/web/src/features/transfers/transfers-page.tsx`
 - `apps/web/src/features/budgets/budgets-page.tsx`
+- `apps/web/src/features/dashboard/dashboard-page.tsx`
 - `apps/web/src/lib/api/transactions.ts`
 - `apps/web/src/lib/api/transfers.ts`
 - `apps/web/src/lib/api/budgets.ts`
+- `apps/web/src/lib/api/dashboard.ts`
 - Existing account/category/tag feature files and selectors
 
 Docs:
@@ -91,6 +96,9 @@ Docs:
 - Budgets are strictly monthly: `period_start` must be the first day of the month and `period_end` is derived as the first day of the next month.
 - Budget currency is explicit and budget spending only includes same-currency, non-transfer, non-deleted expense transactions.
 - Budget uniqueness is `(user_id, category_id, period_start, currency)`; creating the same archived identity reactivates it, while update collisions are rejected.
+- Dashboard money summaries are grouped per currency; no FX conversion is attempted in MVP.
+- Dashboard monthly income/expense excludes deleted rows, soft-deleted rows, transfer rows, and other-user rows.
+- Dashboard recent transactions are scoped to the selected dashboard month and intentionally omit notes from the payload.
 - Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before production hardening.
 
 ## 7. Current Unfinished Work
@@ -98,7 +106,7 @@ Docs:
 - Create-first-account onboarding flow polish.
 - Database-backed integration tests for user-owned authorization isolation.
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
-- Dashboard, reports, recurring rules, import/export, and settings/privacy are not implemented.
+- Full reports, recurring rules, import/export, and settings/privacy are not implemented.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
 
@@ -140,7 +148,7 @@ Docs:
   - API tests passed: 28 tests.
   - Web tests passed: 1 test.
   - `npm.cmd run build` passed.
-- Step 8 adds migration `20260517060000_budgets` and should be verified with the standard command sequence before the next checkpoint.
+- Step 8 adds migration `20260517060000_budgets`; Step 9 Dashboard does not add a schema migration.
 - Final Step 8 Budgets MVP manual QA result:
   - Step 8 Budgets MVP is complete.
   - A small runtime bug was found during smoke testing:
@@ -166,23 +174,37 @@ Docs:
   - Current local servers:
     - Web: `http://localhost:3000`
     - API health: `http://localhost:3001/api/v1/health`
-  - It is safe to commit Step 8 after final validation passes.
-  - It is safe to start Step 9 Dashboard in a fresh Codex session after committing.
+- Final Step 9 Dashboard MVP implementation:
+  - `GET /api/v1/reports/dashboard` is protected by `JwtAuthGuard`.
+  - Dashboard returns per-currency total balance, monthly income, monthly expense, net cashflow, budget warnings, and recent normal transactions.
+  - Monthly income/expense explicitly filters `deletedAt: null`, `isDeleted: false`, `transferGroupId: null`, `transferSide: null`, and authenticated `userId`.
+  - Budget warnings use the same spent rules as Step 8.
+  - Frontend Dashboard is read-only and only formats backend decimal strings.
+  - Step 9 Dashboard MVP complete and validated.
+  - Local commit created: `Implement dashboard MVP`.
+  - Push is pending because this local repository has no configured Git remote.
+  - Validation passed:
+    - `db:migrate`
+    - `db:generate`
+    - `typecheck`
+    - `lint`
+    - `test`: API 46 tests, Web 1 test
+    - `build`
+  - Manual smoke passed:
+    - Dashboard is the default first tab.
+    - Summary, recent transactions, transfer exclusion, deleted transaction exclusion, note omission, budget warning parity, and month selector behavior were checked through the web app.
 - Previous dev server log files may exist (`web.server.log`, `web.server.err.log`, etc.) and are not meaningful source artifacts.
 - `.env` files exist locally for development and are ignored by `.gitignore`; do not commit secrets.
 - Some tests are unit-only; authorization isolation still needs database-backed integration tests.
 
 ## 9. Next Recommended Task
 
-Step 8 Budgets is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 9:
+Step 9 Dashboard is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 10:
 
-1. Create dashboard endpoint.
-2. Calculate total balance.
-3. Calculate monthly income and expense.
-4. Calculate net cashflow.
-5. Calculate budget risk from active monthly budgets.
-6. Add recent transactions.
-7. Add dashboard UI.
+1. Spending by category.
+2. Cashflow by period.
+3. Net worth basic.
+4. Chart UI.
 
 ## 10. Exact Prompt for Next Codex Session
 
@@ -192,16 +214,16 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Implement Step 9: Dashboard. Step 8 Budgets is complete.
+Implement Step 10: Reports. Step 9 Dashboard is complete.
 
 Requirements:
 - Use plan mode first.
 - Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build`.
-- Do not implement reports, recurring transactions, import/export, bank sync, OCR, AI insight, attachments, shared finance, or investments.
+- Do not implement recurring transactions, import/export, bank sync, OCR, AI insight, attachments, shared finance, or investments.
 - Build on the existing Step 6 transaction ledger and Step 7 transfers.
 - Build on the existing Step 8 budget spent/risk calculations.
 - Keep all user-owned behavior scoped through the authenticated session.
 - Use decimal-safe money handling only.
-- Add tests for dashboard summary calculations.
+- Add tests for report aggregation calculations.
 - Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
 ```

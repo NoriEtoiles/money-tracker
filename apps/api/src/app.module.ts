@@ -6,6 +6,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { BudgetsModule } from "./modules/budgets/budgets.module";
 import { HealthModule } from "./modules/health/health.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 import { TagsModule } from "./modules/tags/tags.module";
 import { TransactionsModule } from "./modules/transactions/transactions.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -24,6 +25,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     AccountsModule,
     BudgetsModule,
     OnboardingModule,
+    ReportsModule,
     TagsModule,
     TransactionsModule,
     UsersModule,
