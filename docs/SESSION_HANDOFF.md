@@ -180,9 +180,7 @@ Docs:
   - Monthly income/expense explicitly filters `deletedAt: null`, `isDeleted: false`, `transferGroupId: null`, `transferSide: null`, and authenticated `userId`.
   - Budget warnings use the same spent rules as Step 8.
   - Frontend Dashboard is read-only and only formats backend decimal strings.
-  - Step 9 Dashboard MVP complete and validated.
-  - Local commit created: `Implement dashboard MVP`.
-  - Push is pending because this local repository has no configured Git remote.
+  - Step 9 Dashboard MVP is complete, automated validation passed, manual smoke passed, committed locally as `c50542c Implement dashboard MVP`, and pushed to GitHub.
   - Validation passed:
     - `db:migrate`
     - `db:generate`
