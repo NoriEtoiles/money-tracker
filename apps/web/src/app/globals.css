@@ -173,6 +173,117 @@ a {
   grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
 }
 
+.report-toolbar {
+  align-items: end;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+  margin-top: 24px;
+  padding: 16px;
+}
+
+.report-tabs {
+  align-items: center;
+  background: #eef2f6;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: inline-grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+  margin-top: 16px;
+  padding: 4px;
+}
+
+.report-tab {
+  background: transparent;
+  color: var(--muted);
+  min-height: 36px;
+  padding: 6px 10px;
+}
+
+.report-tab-active {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+  color: var(--foreground);
+}
+
+.report-view {
+  margin-top: 24px;
+}
+
+.report-section-list,
+.report-section {
+  display: grid;
+  gap: 16px;
+}
+
+.report-section .panel-heading {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  padding-bottom: 12px;
+}
+
+.report-section .panel-heading span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.report-stacked-chart {
+  background: #eef2f6;
+  border-radius: 999px;
+  display: flex;
+  height: 18px;
+  overflow: hidden;
+}
+
+.report-segment {
+  min-width: 8px;
+}
+
+.report-row {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+}
+
+.report-bar-track {
+  background: #eef2f6;
+  border-radius: 999px;
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.report-bar-fill {
+  background: var(--accent);
+  height: 100%;
+}
+
+.report-chart-list {
+  display: grid;
+  gap: 12px;
+}
+
+.report-bar-pair {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.report-bar-income {
+  background: #067647;
+}
+
+.report-bar-expense {
+  background: var(--danger);
+}
+
+.report-cashflow-values {
+  gap: 2px;
+}
+
 .metric {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -559,6 +670,7 @@ button:disabled {
 
   .workspace-grid,
   .dashboard-layout,
+  .report-toolbar,
   .account-row,
   .resource-row,
   .account-edit-form,
@@ -571,6 +683,12 @@ button:disabled {
   .dashboard-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .report-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .balance-block,

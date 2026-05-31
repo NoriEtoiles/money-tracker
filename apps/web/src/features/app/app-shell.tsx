@@ -7,6 +7,7 @@ import { AuthPanel } from "../auth/auth-panel";
 import { BudgetsPage } from "../budgets/budgets-page";
 import { CategoriesPage } from "../categories/categories-page";
 import { DashboardPage } from "../dashboard/dashboard-page";
+import { ReportsPage } from "../reports/reports-page";
 import { TagsPage } from "../tags/tags-page";
 import { TransactionsPage } from "../transactions/transactions-page";
 import { TransfersPage } from "../transfers/transfers-page";
@@ -18,7 +19,15 @@ type SessionState = {
   refreshToken: string;
 };
 
-type AppTab = "accounts" | "budgets" | "categories" | "dashboard" | "tags" | "transactions" | "transfers";
+type AppTab =
+  | "accounts"
+  | "budgets"
+  | "categories"
+  | "dashboard"
+  | "reports"
+  | "tags"
+  | "transactions"
+  | "transfers";
 
 const accessTokenKey = "money-tracker-access-token";
 const refreshTokenKey = "money-tracker-refresh-token";
@@ -31,6 +40,7 @@ const appTabs: Array<{ label: string; value: AppTab }> = [
   { label: "Transactions", value: "transactions" },
   { label: "Transfers", value: "transfers" },
   { label: "Budgets", value: "budgets" },
+  { label: "Reports", value: "reports" },
   { label: "Categories", value: "categories" },
   { label: "Tags", value: "tags" }
 ];
@@ -186,6 +196,18 @@ export function AppShell(): React.ReactElement {
   if (activeTab === "budgets") {
     return (
       <BudgetsPage
+        accessToken={session.accessToken}
+        currentUser={currentUser}
+        message={message}
+        navigation={navigation}
+        onLogout={() => void handleLogout()}
+      />
+    );
+  }
+
+  if (activeTab === "reports") {
+    return (
+      <ReportsPage
         accessToken={session.accessToken}
         currentUser={currentUser}
         message={message}

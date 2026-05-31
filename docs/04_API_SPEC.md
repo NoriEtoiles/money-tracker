@@ -816,9 +816,128 @@ the same spent calculation rules as `GET /api/v1/budgets`.
 
 ### GET `/api/v1/reports/spending`
 
+Protected. Returns expense spending grouped by category for an explicit date range.
+Money totals are grouped per currency; the API does not convert or combine
+currencies.
+
+Query params:
+- `dateFrom` required `YYYY-MM-DD`, inclusive.
+- `dateTo` required `YYYY-MM-DD`, user-facing inclusive. The backend queries
+  `transactionAt >= dateFrom` and `transactionAt < nextDay(dateTo)` using UTC
+  date-only boundaries.
+- `currency` optional three-letter uppercase currency code.
+
+Response:
+
+```json
+{
+  "dateFrom": "2026-05-01",
+  "dateTo": "2026-05-31",
+  "items": [
+    {
+      "category": {
+        "id": "uuid",
+        "name": "Food"
+      },
+      "currency": "IDR",
+      "amount": "850000.0000",
+      "percentage": "62.96"
+    },
+    {
+      "category": null,
+      "currency": "IDR",
+      "amount": "50000.0000",
+      "percentage": "3.70"
+    }
+  ],
+  "totalsByCurrency": [
+    {
+      "currency": "IDR",
+      "totalAmount": "1350000.0000"
+    }
+  ]
+}
+```
+
+Rows include only the authenticated user's normal expense transactions where
+`deletedAt = null`, `isDeleted = false`, `transferGroupId = null`,
+`transferSide = null`, and `transactionAt` is in range. Percentages are
+calculated within each currency. Items are sorted by currency and then amount
+descending.
+
 ### GET `/api/v1/reports/cashflow`
 
+Protected. Returns monthly income, expense, and net cashflow buckets for an
+explicit date range. Transfers are excluded and currencies are kept separate.
+
+Query params:
+- `dateFrom` required `YYYY-MM-DD`, inclusive.
+- `dateTo` required `YYYY-MM-DD`, user-facing inclusive. The backend queries
+  `transactionAt >= dateFrom` and `transactionAt < nextDay(dateTo)` using UTC
+  date-only boundaries.
+- `currency` optional three-letter uppercase currency code.
+
+Response:
+
+```json
+{
+  "dateFrom": "2026-05-01",
+  "dateTo": "2026-06-30",
+  "grain": "month",
+  "buckets": [
+    {
+      "periodStart": "2026-05-01",
+      "periodEnd": "2026-06-01",
+      "currency": "IDR",
+      "incomeAmount": "8000000.0000",
+      "expenseAmount": "3500000.0000",
+      "netCashflow": "4500000.0000"
+    }
+  ]
+}
+```
+
+Rows include only the authenticated user's normal income/expense transactions
+where `deletedAt = null`, `isDeleted = false`, `transferGroupId = null`,
+`transferSide = null`, and `transactionAt` is in range. Buckets are sorted by
+`periodStart` ascending, then currency.
+
 ### GET `/api/v1/reports/net-worth`
+
+Protected. Returns a current net worth snapshot from active account balances.
+This is not a historical trend and does not perform FX conversion.
+
+Query params:
+- `currency` optional three-letter uppercase currency code.
+
+Response:
+
+```json
+{
+  "asOf": "2026-05-27T15:00:00.000Z",
+  "summaryByCurrency": [
+    {
+      "currency": "IDR",
+      "totalBalance": "5000000.0000",
+      "accountCount": 2
+    }
+  ],
+  "accounts": [
+    {
+      "id": "uuid",
+      "name": "Cash",
+      "type": "cash",
+      "currency": "IDR",
+      "currentBalance": "1000000.0000",
+      "sortOrder": 0
+    }
+  ]
+}
+```
+
+Net worth includes only active, non-deleted accounts for the authenticated user
+where `includeInNetWorth = true`. Accounts are sorted by currency, sort order,
+name, creation time, and id.
 
 ## Import
 

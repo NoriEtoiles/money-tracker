@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 9:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 10:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -28,6 +28,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 9:
 - Step 7 Transfers: internal transfer CRUD, linked transfer legs, transfer UI, transaction endpoint guards, and transfer unit tests done.
 - Step 8 Budgets: monthly budget table, guarded budget CRUD, currency-specific spent calculation, threshold warnings, budget UI, and unit tests done.
 - Step 9 Dashboard: guarded dashboard endpoint, per-currency balance/cashflow summary, budget warnings, recent transactions, dashboard UI, and unit tests done.
+- Step 10 Reports: guarded spending, cashflow, and net worth endpoints, Reports UI tab with chart-style views, API docs, and unit tests done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -48,6 +49,7 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - API/docs updated for implemented ledger, transfer, and budget contracts.
 - Budget API/UI: monthly category budgets with explicit currency, create/update/archive behavior, spent/remaining/progress calculation, and threshold warning state.
 - Dashboard API/UI: read-only monthly dashboard with per-currency total balance, income, expense, net cashflow, Step 8-compatible budget warnings, and recent normal transactions without notes.
+- Reports API/UI: read-only spending by category, monthly cashflow, and current net worth snapshot reports with per-currency grouping and chart-style web views.
 
 ## 5. Important Files
 
@@ -57,6 +59,8 @@ Backend:
 - `apps/api/src/modules/transactions/*`
 - `apps/api/src/modules/budgets/*`
 - `apps/api/src/modules/reports/*`
+- `apps/api/src/modules/reports/reports.service.ts`
+- `apps/api/src/modules/reports/reports.service.spec.ts`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
 - `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
@@ -67,10 +71,12 @@ Frontend:
 - `apps/web/src/features/transfers/transfers-page.tsx`
 - `apps/web/src/features/budgets/budgets-page.tsx`
 - `apps/web/src/features/dashboard/dashboard-page.tsx`
+- `apps/web/src/features/reports/reports-page.tsx`
 - `apps/web/src/lib/api/transactions.ts`
 - `apps/web/src/lib/api/transfers.ts`
 - `apps/web/src/lib/api/budgets.ts`
 - `apps/web/src/lib/api/dashboard.ts`
+- `apps/web/src/lib/api/reports.ts`
 - Existing account/category/tag feature files and selectors
 
 Docs:
@@ -99,6 +105,11 @@ Docs:
 - Dashboard money summaries are grouped per currency; no FX conversion is attempted in MVP.
 - Dashboard monthly income/expense excludes deleted rows, soft-deleted rows, transfer rows, and other-user rows.
 - Dashboard recent transactions are scoped to the selected dashboard month and intentionally omit notes from the payload.
+- Step 10 report date ranges use UTC date-only boundaries: `dateFrom` is inclusive and `dateTo` is user-facing inclusive via `transactionAt >= dateFrom` and `transactionAt < nextDay(dateTo)`.
+- Spending reports group normal expense transactions by category and currency, sort by currency then amount descending, and calculate percentages per currency only.
+- Cashflow reports group normal income/expense transactions into monthly buckets sorted by `periodStart` ascending, then currency.
+- Net worth reports are current snapshots from active, non-deleted, `includeInNetWorth = true` account balances sorted by currency, sort order, name, creation time, and id.
+- Step 10 reports are read-only, exclude transfer rows, and never perform FX conversion or combine currencies.
 - Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before production hardening.
 
 ## 7. Current Unfinished Work
@@ -106,7 +117,7 @@ Docs:
 - Create-first-account onboarding flow polish.
 - Database-backed integration tests for user-owned authorization isolation.
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
-- Full reports, recurring rules, import/export, and settings/privacy are not implemented.
+- Recurring rules, import/export, and settings/privacy are not implemented.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
 
@@ -194,15 +205,31 @@ Docs:
 - Previous dev server log files may exist (`web.server.log`, `web.server.err.log`, etc.) and are not meaningful source artifacts.
 - `.env` files exist locally for development and are ignored by `.gitignore`; do not commit secrets.
 - Some tests are unit-only; authorization isolation still needs database-backed integration tests.
+- Final Step 10 Reports MVP implementation:
+  - `GET /api/v1/reports/spending` is protected by `JwtAuthGuard` and returns spending grouped by category/currency with per-currency totals and percentages.
+  - `GET /api/v1/reports/cashflow` is protected by `JwtAuthGuard` and returns monthly income/expense/net buckets.
+  - `GET /api/v1/reports/net-worth` is protected by `JwtAuthGuard` and returns a current account-balance snapshot grouped per currency.
+  - Spending and cashflow use inclusive UTC date-only ranges and exclude other-user rows, deleted rows, soft-deleted rows, transfers, and out-of-range rows.
+  - Frontend Reports tab includes date range controls, optional currency filter, Spending/Cashflow/Net Worth tabs, and chart-style visual bars from backend-provided decimal strings.
+  - No schema migration was added for Step 10.
+  - During validation, old local API/web Node dev servers were stopped because they locked Prisma's Windows query engine DLL and blocked `db:generate`.
+  - Validation passed:
+    - `docker compose up -d postgres`
+    - `npm.cmd run db:migrate`
+    - `npm.cmd run db:generate`
+    - `npm.cmd run typecheck`
+    - `npm.cmd run lint`
+    - `npm.cmd run test`: API 51 tests, Web 1 test
+    - `npm.cmd run build`
 
 ## 9. Next Recommended Task
 
-Step 9 Dashboard is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 10:
+Step 10 Reports is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 11:
 
-1. Spending by category.
-2. Cashflow by period.
-3. Net worth basic.
-4. Chart UI.
+1. Recurring rules.
+2. Scheduled generation.
+3. Duplicate prevention.
+4. Pause/resume rule.
 
 ## 10. Exact Prompt for Next Codex Session
 
@@ -212,16 +239,16 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Implement Step 10: Reports. Step 9 Dashboard is complete.
+Implement Step 11: Recurring Transactions. Step 10 Reports is complete.
 
 Requirements:
 - Use plan mode first.
 - Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build`.
-- Do not implement recurring transactions, import/export, bank sync, OCR, AI insight, attachments, shared finance, or investments.
+- Do not implement import/export, bank sync, OCR, AI insight, attachments, shared finance, or investments.
 - Build on the existing Step 6 transaction ledger and Step 7 transfers.
 - Build on the existing Step 8 budget spent/risk calculations.
 - Keep all user-owned behavior scoped through the authenticated session.
 - Use decimal-safe money handling only.
-- Add tests for report aggregation calculations.
+- Add tests for recurring rule validation, due generation, duplicate prevention, and pause/resume behavior.
 - Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
 ```
