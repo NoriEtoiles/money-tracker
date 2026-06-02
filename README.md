@@ -123,6 +123,7 @@ This foundation includes:
 - budget list and create/edit/archive UI with progress warnings
 - read-only dashboard API/UI with per-currency balances, monthly cashflow, budget warnings, and recent transactions
 - read-only reports API/UI for spending by category, monthly cashflow, and basic net worth charts
+- recurring rule CRUD API/UI with daily, weekly, and monthly schedules, automatic generation, duplicate prevention, and pause/resume/archive actions
 - lint/typecheck/test scripts
 - basic CI workflow
 
@@ -161,13 +162,20 @@ Core endpoints:
 - `GET /api/v1/reports/spending`
 - `GET /api/v1/reports/cashflow`
 - `GET /api/v1/reports/net-worth`
+- `GET /api/v1/recurring-rules`
+- `POST /api/v1/recurring-rules`
+- `PATCH /api/v1/recurring-rules/{ruleId}`
+- `DELETE /api/v1/recurring-rules/{ruleId}`
+- `POST /api/v1/recurring-rules/{ruleId}/pause`
+- `POST /api/v1/recurring-rules/{ruleId}/resume`
 
 ## Next Recommended Task
 
-Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 11: Recurring Transactions**:
-- recurring rules
-- scheduled generation
-- duplicate prevention
-- pause/resume rule
+Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 12: CSV Import**:
+- upload CSV
+- map columns
+- preview
+- validate
+- confirm import
 
 Keep each task small, tested, and aligned with `AGENTS.md`.

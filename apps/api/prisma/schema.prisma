@@ -27,6 +27,7 @@ model User {
   tags            Tag[]
   transactions    Transaction[]
   budgets         Budget[]
+  recurringRules  RecurringRule[]
 
   @@map("users")
 }
@@ -145,12 +146,17 @@ model Transaction {
   user            User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   account         Account   @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   category        Category? @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recurringRule   RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_transactions_recurring_rule_id")
+  recurringRuleId String?   @map("recurring_rule_id") @db.Uuid
+  recurringOccurrenceAt DateTime? @map("recurring_occurrence_at") @db.Timestamptz(6)
 
   @@index([userId, transactionAt(sort: Desc)], map: "idx_transactions_user_date")
   @@index([accountId, transactionAt(sort: Desc)], map: "idx_transactions_account_date")
   @@index([categoryId, transactionAt(sort: Desc)], map: "idx_transactions_category_date")
   @@index([userId, transferGroupId], map: "idx_transactions_user_transfer_group")
   @@index([transferGroupId, transferSide], map: "idx_transactions_transfer_group_side")
+  @@unique([userId, recurringRuleId, recurringOccurrenceAt], map: "ux_transactions_recurring_occurrence")
+  @@index([recurringRuleId], map: "idx_transactions_recurring_rule_id")
   @@map("transactions")
 }
 
@@ -172,4 +178,31 @@ model Budget {
   @@unique([userId, categoryId, periodStart, currency], map: "ux_budgets_user_category_period_currency")
   @@index([userId, periodStart, currency], map: "idx_budgets_user_period_currency")
   @@map("budgets")
+}
+
+model RecurringRule {
+  id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                  String        @map("user_id") @db.Uuid
+  name                    String
+  templatePayload         Json          @map("template_payload")
+  frequency               String
+  intervalCount           Int           @default(1) @map("interval_count")
+  dayOfMonth              Int?          @map("day_of_month")
+  timezone                String
+  startAt                 DateTime      @map("start_at") @db.Timestamptz(6)
+  endAt                   DateTime?     @map("end_at") @db.Timestamptz(6)
+  nextRunAt               DateTime?     @map("next_run_at") @db.Timestamptz(6)
+  lastRunAt               DateTime?     @map("last_run_at") @db.Timestamptz(6)
+  pausedAt                DateTime?     @map("paused_at") @db.Timestamptz(6)
+  archivedAt              DateTime?     @map("archived_at") @db.Timestamptz(6)
+  lastFailedAt            DateTime?     @map("last_failed_at") @db.Timestamptz(6)
+  lastGenerationErrorCode String?       @map("last_generation_error_code")
+  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                    User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_recurring_rules_user_id")
+  transactions            Transaction[]
+
+  @@index([userId, nextRunAt], map: "idx_recurring_rules_user_next_run")
+  @@index([nextRunAt], map: "idx_recurring_rules_due")
+  @@map("recurring_rules")
 }

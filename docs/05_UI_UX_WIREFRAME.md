@@ -133,6 +133,22 @@ App
 +------------------------------------------------------+
 ```
 
+## Recurring Wireframe
+
+```txt
++------------------------------------------------------+
+| Recurring                              [+ Add Rule]  |
++------------------------------------------------------+
+| Internet Bill     Every 1 month       -Rp 500.000    |
+| Next: 05 Jun 2026 09:00 WIB           [Pause] [Edit] |
++------------------------------------------------------+
+| Salary            Every 1 month       +Rp 8.000.000  |
+| Paused                                  [Resume]      |
++------------------------------------------------------+
+```
+
+Generated recurring ledger rows show a `Recurring` badge in the Transactions list.
+
 ## Settings Wireframe
 
 ```txt

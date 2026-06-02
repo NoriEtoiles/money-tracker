@@ -120,6 +120,8 @@ CREATE TABLE transactions (
   category_id UUID REFERENCES categories(id),
   transfer_group_id UUID,
   transfer_side TEXT,
+  recurring_rule_id UUID,
+  recurring_occurrence_at TIMESTAMPTZ,
   type TEXT NOT NULL,
   amount NUMERIC(18,4) NOT NULL,
   currency CHAR(3) NOT NULL,
@@ -139,6 +141,7 @@ CREATE INDEX idx_transactions_account_date ON transactions(account_id, transacti
 CREATE INDEX idx_transactions_category_date ON transactions(category_id, transaction_at DESC);
 CREATE INDEX idx_transactions_user_transfer_group ON transactions(user_id, transfer_group_id);
 CREATE INDEX idx_transactions_transfer_group_side ON transactions(transfer_group_id, transfer_side);
+CREATE INDEX idx_transactions_recurring_rule_id ON transactions(recurring_rule_id);
 
 ALTER TABLE transactions
   ADD CONSTRAINT chk_transactions_type
@@ -176,13 +179,34 @@ CREATE INDEX idx_transactions_user_transfer_outflow_date
   WHERE deleted_at IS NULL
     AND transfer_group_id IS NOT NULL
     AND transfer_side = 'outflow';
+
+ALTER TABLE transactions
+  ADD CONSTRAINT chk_transactions_recurring_shape
+  CHECK (
+    (
+      source = 'recurring'
+      AND recurring_rule_id IS NOT NULL
+      AND recurring_occurrence_at IS NOT NULL
+    )
+    OR
+    (
+      source <> 'recurring'
+      AND recurring_rule_id IS NULL
+      AND recurring_occurrence_at IS NULL
+    )
+  );
+
+CREATE UNIQUE INDEX ux_transactions_recurring_occurrence
+  ON transactions(user_id, recurring_rule_id, recurring_occurrence_at);
 ```
 
 Transfers use two linked `transactions` rows with the same `transfer_group_id`:
 one `outflow` leg from the source account and one `inflow` leg to the destination
 account. Transfer rows must not have a category and must be excluded from normal
-income/expense reports. FX transfers, imports, recurring-generated transactions,
-and external IDs are deferred to later steps.
+income/expense reports. FX transfers, imports, and external IDs are deferred to
+later steps. Recurring-generated transactions are normal income/expense rows with
+`source = 'recurring'`; their unfiltered unique occurrence index remains effective
+after soft delete so an occurrence cannot be generated twice.
 
 ### transaction_tags
 
@@ -232,24 +256,45 @@ expense transactions in the same category and currency where
 ```sql
 CREATE TABLE recurring_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id),
+  user_id UUID NOT NULL,
   name TEXT NOT NULL,
   template_payload JSONB NOT NULL,
   frequency TEXT NOT NULL,
   interval_count INT NOT NULL DEFAULT 1,
   day_of_month INT,
-  weekday_mask INT,
+  timezone TEXT NOT NULL,
   start_at TIMESTAMPTZ NOT NULL,
   end_at TIMESTAMPTZ,
-  next_run_at TIMESTAMPTZ NOT NULL,
+  next_run_at TIMESTAMPTZ,
   last_run_at TIMESTAMPTZ,
   paused_at TIMESTAMPTZ,
+  archived_at TIMESTAMPTZ,
+  last_failed_at TIMESTAMPTZ,
+  last_generation_error_code TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_recurring_rules_user_id
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CHECK (frequency IN ('daily', 'weekly', 'monthly')),
+  CHECK (interval_count >= 1),
+  CHECK (
+    (frequency = 'monthly' AND day_of_month BETWEEN 1 AND 31)
+    OR
+    (frequency IN ('daily', 'weekly') AND day_of_month IS NULL)
+  ),
+  CHECK (end_at IS NULL OR end_at >= start_at)
 );
 
-CREATE INDEX idx_recurring_user_next_run ON recurring_rules(user_id, next_run_at);
+CREATE INDEX idx_recurring_rules_user_next_run ON recurring_rules(user_id, next_run_at);
+CREATE INDEX idx_recurring_rules_due ON recurring_rules(next_run_at);
 ```
+
+Recurring rules snapshot the user timezone when created. The Step 11 worker
+supports daily, weekly, and monthly income/expense templates only. Generated
+transactions, balance updates, schedule advancement, and generation audit events
+are committed atomically. Missing account or category dependencies auto-pause the
+rule with a safe error code.
 
 ### imports
 

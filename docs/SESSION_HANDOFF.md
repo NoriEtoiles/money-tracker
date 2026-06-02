@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 10:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 11:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -29,6 +29,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 10:
 - Step 8 Budgets: monthly budget table, guarded budget CRUD, currency-specific spent calculation, threshold warnings, budget UI, and unit tests done.
 - Step 9 Dashboard: guarded dashboard endpoint, per-currency balance/cashflow summary, budget warnings, recent transactions, dashboard UI, and unit tests done.
 - Step 10 Reports: guarded spending, cashflow, and net worth endpoints, Reports UI tab with chart-style views, API docs, and unit tests done.
+- Step 11 Recurring Transactions: guarded recurring rule CRUD/lifecycle endpoints, in-process scheduled generation, duplicate prevention, Recurring UI tab, and unit tests done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -50,6 +51,7 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - Budget API/UI: monthly category budgets with explicit currency, create/update/archive behavior, spent/remaining/progress calculation, and threshold warning state.
 - Dashboard API/UI: read-only monthly dashboard with per-currency total balance, income, expense, net cashflow, Step 8-compatible budget warnings, and recent normal transactions without notes.
 - Reports API/UI: read-only spending by category, monthly cashflow, and current net worth snapshot reports with per-currency grouping and chart-style web views.
+- Recurring API/UI: daily, weekly, and monthly income/expense rules with user-timezone schedules, automatic generation, duplicate prevention, and pause/resume/archive actions.
 
 ## 5. Important Files
 
@@ -61,9 +63,11 @@ Backend:
 - `apps/api/src/modules/reports/*`
 - `apps/api/src/modules/reports/reports.service.ts`
 - `apps/api/src/modules/reports/reports.service.spec.ts`
+- `apps/api/src/modules/recurring/*`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
 - `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
+- `apps/api/prisma/migrations/20260531000000_recurring_rules/migration.sql`
 
 Frontend:
 - `apps/web/src/features/app/app-shell.tsx`
@@ -72,11 +76,13 @@ Frontend:
 - `apps/web/src/features/budgets/budgets-page.tsx`
 - `apps/web/src/features/dashboard/dashboard-page.tsx`
 - `apps/web/src/features/reports/reports-page.tsx`
+- `apps/web/src/features/recurring/recurring-page.tsx`
 - `apps/web/src/lib/api/transactions.ts`
 - `apps/web/src/lib/api/transfers.ts`
 - `apps/web/src/lib/api/budgets.ts`
 - `apps/web/src/lib/api/dashboard.ts`
 - `apps/web/src/lib/api/reports.ts`
+- `apps/web/src/lib/api/recurring-rules.ts`
 - Existing account/category/tag feature files and selectors
 
 Docs:
@@ -110,6 +116,12 @@ Docs:
 - Cashflow reports group normal income/expense transactions into monthly buckets sorted by `periodStart` ascending, then currency.
 - Net worth reports are current snapshots from active, non-deleted, `includeInNetWorth = true` account balances sorted by currency, sort order, name, creation time, and id.
 - Step 10 reports are read-only, exclude transfer rows, and never perform FX conversion or combine currencies.
+- Step 11 recurring templates support normal `income` and `expense` only; recurring transfers are deferred.
+- Recurring rules snapshot the user's timezone at creation and keep local wall-clock cadence for daily, weekly, and monthly schedules.
+- Monthly recurrence stores the original day intent, clamps short months to their final day, and does not drift after the short month.
+- API downtime is caught up in batches of at most 100 occurrences per scheduler tick; pause/resume intentionally skips the paused period.
+- Generated recurring rows are normal editable and soft-deletable ledger rows with `source = "recurring"`, and database uniqueness prevents deleted occurrences from being generated again.
+- Unavailable recurring account/category dependencies auto-pause the rule with safe error codes only.
 - Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before production hardening.
 
 ## 7. Current Unfinished Work
@@ -117,7 +129,7 @@ Docs:
 - Create-first-account onboarding flow polish.
 - Database-backed integration tests for user-owned authorization isolation.
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
-- Recurring rules, import/export, and settings/privacy are not implemented.
+- Import/export and settings/privacy are not implemented.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
 
@@ -221,15 +233,35 @@ Docs:
     - `npm.cmd run lint`
     - `npm.cmd run test`: API 51 tests, Web 1 test
     - `npm.cmd run build`
+- Final Step 11 Recurring Transactions MVP implementation:
+  - Step 11 changes are implemented and validated locally but are not committed or pushed yet.
+  - `GET/POST/PATCH/DELETE /api/v1/recurring-rules` and `POST .../{ruleId}/pause|resume` are protected by `JwtAuthGuard`.
+  - `@nestjs/schedule` runs bounded recurring generation inside the API process; Luxon handles timezone-aware calendar arithmetic.
+  - Generated transactions, decimal-safe account balance updates, schedule advancement, and safe audit events commit atomically.
+  - `ux_transactions_recurring_occurrence` enforces duplicate prevention across retries and remains effective after soft delete.
+  - Frontend Recurring tab supports create/edit/pause/resume/archive and generated transaction rows show a `Recurring` badge.
+  - Validation passed:
+    - `docker compose up -d postgres`
+    - `npm.cmd run db:migrate`
+    - `npm.cmd run db:generate`
+    - `npm.cmd run typecheck`
+    - `npm.cmd run lint`
+    - `npm.cmd run test`: API 63 tests, Web 1 test
+    - `npm.cmd run build`
+    - `git diff --check`
+  - HTTP/database smoke passed:
+    - Cron generated a due recurring expense row with `source = "recurring"` and matching `recurring_occurrence_at`.
+    - The generated expense updated account balance, budget spent amount, dashboard monthly expense, and spending report amount.
+    - Pause, resume, archive, safe audit metadata, and the unfiltered database unique occurrence index were verified.
 
 ## 9. Next Recommended Task
 
-Step 10 Reports is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 11:
+Step 11 Recurring Transactions is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 12:
 
-1. Recurring rules.
-2. Scheduled generation.
-3. Duplicate prevention.
-4. Pause/resume rule.
+1. Upload CSV.
+2. Map columns.
+3. Preview and validate.
+4. Confirm import.
 
 ## 10. Exact Prompt for Next Codex Session
 
@@ -239,16 +271,15 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Implement Step 11: Recurring Transactions. Step 10 Reports is complete.
+Implement Step 12: CSV Import. Step 11 Recurring Transactions is complete.
 
 Requirements:
 - Use plan mode first.
 - Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build`.
 - Do not implement import/export, bank sync, OCR, AI insight, attachments, shared finance, or investments.
-- Build on the existing Step 6 transaction ledger and Step 7 transfers.
-- Build on the existing Step 8 budget spent/risk calculations.
+- Build on the existing Step 6 transaction ledger and Step 11 recurring source metadata.
 - Keep all user-owned behavior scoped through the authenticated session.
 - Use decimal-safe money handling only.
-- Add tests for recurring rule validation, due generation, duplicate prevention, and pause/resume behavior.
+- Add tests for CSV mapping, preview validation, authorization isolation, and confirmed ledger creation.
 - Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
 ```

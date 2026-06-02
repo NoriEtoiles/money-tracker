@@ -8,6 +8,7 @@ import { BudgetsPage } from "../budgets/budgets-page";
 import { CategoriesPage } from "../categories/categories-page";
 import { DashboardPage } from "../dashboard/dashboard-page";
 import { ReportsPage } from "../reports/reports-page";
+import { RecurringPage } from "../recurring/recurring-page";
 import { TagsPage } from "../tags/tags-page";
 import { TransactionsPage } from "../transactions/transactions-page";
 import { TransfersPage } from "../transfers/transfers-page";
@@ -25,6 +26,7 @@ type AppTab =
   | "categories"
   | "dashboard"
   | "reports"
+  | "recurring"
   | "tags"
   | "transactions"
   | "transfers";
@@ -41,6 +43,7 @@ const appTabs: Array<{ label: string; value: AppTab }> = [
   { label: "Transfers", value: "transfers" },
   { label: "Budgets", value: "budgets" },
   { label: "Reports", value: "reports" },
+  { label: "Recurring", value: "recurring" },
   { label: "Categories", value: "categories" },
   { label: "Tags", value: "tags" }
 ];
@@ -208,6 +211,18 @@ export function AppShell(): React.ReactElement {
   if (activeTab === "reports") {
     return (
       <ReportsPage
+        accessToken={session.accessToken}
+        currentUser={currentUser}
+        message={message}
+        navigation={navigation}
+        onLogout={() => void handleLogout()}
+      />
+    );
+  }
+
+  if (activeTab === "recurring") {
+    return (
+      <RecurringPage
         accessToken={session.accessToken}
         currentUser={currentUser}
         message={message}

@@ -529,6 +529,7 @@ button:disabled {
 }
 
 .kind-pill,
+.source-pill,
 .selector-chip {
   background: #ecfdf3;
   border-radius: 999px;
@@ -538,6 +539,43 @@ button:disabled {
   font-weight: 700;
   min-height: 28px;
   padding: 5px 10px;
+}
+
+.source-pill {
+  margin-top: 8px;
+}
+
+.recurring-row {
+  grid-template-columns: minmax(0, 1fr) minmax(220px, auto) auto;
+}
+
+.recurring-error {
+  color: var(--danger) !important;
+  font-weight: 700;
+}
+
+.status-pill {
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 8px;
+  padding: 4px 8px;
+  text-transform: capitalize;
+}
+
+.status-pill-active {
+  background: #ecfdf3;
+  color: #067647 !important;
+}
+
+.status-pill-paused {
+  background: #fff7ed;
+  color: #c2410c !important;
+}
+
+.status-pill-completed {
+  background: #eef2f6;
+  color: var(--muted) !important;
 }
 
 .tag-edit-form {

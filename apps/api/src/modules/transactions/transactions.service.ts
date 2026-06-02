@@ -21,6 +21,7 @@ export type TransactionResponse = {
   id: string;
   merchant: string | null;
   note: string | null;
+  source: string;
   status: string;
   transactionAt: string;
   type: TransactionType;
@@ -470,6 +471,7 @@ export class TransactionsService {
       id: transaction.id,
       merchant: transaction.merchant,
       note: transaction.note,
+      source: transaction.source,
       status: transaction.status,
       transactionAt: transaction.transactionAt.toISOString(),
       type: transaction.type as TransactionType

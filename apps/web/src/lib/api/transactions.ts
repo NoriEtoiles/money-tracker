@@ -16,6 +16,7 @@ export type Transaction = {
   id: string;
   merchant: string | null;
   note: string | null;
+  source: string;
   status: string;
   transactionAt: string;
   type: TransactionType;

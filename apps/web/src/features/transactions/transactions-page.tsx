@@ -392,6 +392,9 @@ export function TransactionsPage({
                       <p>
                         {transaction.merchant ?? "No merchant"} / {transaction.account.name}
                       </p>
+                      {transaction.source === "recurring" ? (
+                        <span className="source-pill">Recurring</span>
+                      ) : null}
                     </div>
                     <div className="balance-block">
                       <strong className={transaction.type === "income" ? "amount-income" : "amount-expense"}>

@@ -418,6 +418,7 @@ Response:
       },
       "merchant": "Warung Makan",
       "note": "Makan siang",
+      "source": "manual",
       "status": "posted",
       "transactionAt": "2026-05-16T08:30:00+07:00"
     }
@@ -461,6 +462,7 @@ Response:
   },
   "merchant": "Warung Makan",
   "note": "Makan siang",
+  "source": "manual",
   "status": "posted",
   "transactionAt": "2026-05-16T08:30:00.000Z"
 }
@@ -716,7 +718,16 @@ and `transactionAt < periodEnd`.
 
 ### GET `/api/v1/recurring-rules`
 
+Protected. Lists non-archived rules owned by the authenticated user. Query params:
+- `cursor`
+- `limit`
+
 ### POST `/api/v1/recurring-rules`
+
+Protected. Creates an income or expense recurring rule. Supported frequencies are
+`daily`, `weekly`, and `monthly`. The backend snapshots the authenticated user's
+timezone and derives the first upcoming occurrence from `startAt`; historical
+occurrences are not backfilled when creating a rule.
 
 Request:
 
@@ -725,7 +736,6 @@ Request:
   "name": "Gaji bulanan",
   "frequency": "monthly",
   "intervalCount": 1,
-  "dayOfMonth": 25,
   "startAt": "2026-05-25T09:00:00+07:00",
   "template": {
     "accountId": "uuid",
@@ -737,6 +747,73 @@ Request:
   }
 }
 ```
+
+Response:
+
+```json
+{
+  "id": "uuid",
+  "name": "Gaji bulanan",
+  "frequency": "monthly",
+  "intervalCount": 1,
+  "timezone": "Asia/Jakarta",
+  "startAt": "2026-05-25T02:00:00.000Z",
+  "endAt": null,
+  "nextRunAt": "2026-06-25T02:00:00.000Z",
+  "lastRunAt": null,
+  "pausedAt": null,
+  "lastGenerationErrorCode": null,
+  "status": "active",
+  "template": {
+    "accountId": "uuid",
+    "type": "income",
+    "amount": "5000000.0000",
+    "currency": "IDR",
+    "categoryId": "uuid",
+    "merchant": "Salary"
+  }
+}
+```
+
+The template intentionally has no note field. Account and category lookup is
+scoped by the authenticated user. Template currency must match the active account
+currency, and category kind must match transaction type.
+
+### PATCH `/api/v1/recurring-rules/{ruleId}`
+
+Protected. Updates rule fields or the complete template. Template-only updates
+preserve the next scheduled occurrence. Schedule updates recompute the next
+upcoming occurrence without historical backfill.
+
+### DELETE `/api/v1/recurring-rules/{ruleId}`
+
+Protected. Archives the rule without deleting generated ledger history.
+
+Response:
+
+```json
+{
+  "success": true,
+  "mode": "archived"
+}
+```
+
+### POST `/api/v1/recurring-rules/{ruleId}/pause`
+
+Protected. Pauses future generation.
+
+### POST `/api/v1/recurring-rules/{ruleId}/resume`
+
+Protected. Validates dependencies and resumes at the next upcoming occurrence.
+Occurrences during the paused period are skipped.
+
+The in-process scheduler catches up occurrences missed during API downtime in
+bounded batches. Each generated transaction is a normal editable, soft-deletable,
+non-transfer ledger row with `source = "recurring"` and
+`transactionAt = recurringOccurrenceAt`. Database uniqueness on
+`(user_id, recurring_rule_id, recurring_occurrence_at)` prevents regeneration,
+including after soft delete. An unavailable account or category auto-pauses the
+rule with a safe error code.
 
 ## Reports
 
