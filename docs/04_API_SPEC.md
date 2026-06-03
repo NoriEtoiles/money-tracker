@@ -1020,31 +1020,96 @@ name, creation time, and id.
 
 ### POST `/api/v1/imports/csv`
 
-Multipart upload.
+Protected multipart upload. Use field `file`. Accept UTF-8 `.csv` files up to
+1 MiB, 1,000 data rows, and 50 columns. Comma and semicolon delimiters are
+detected deterministically. Raw CSV bytes are never stored.
 
 Response:
 
 ```json
 {
   "importId": "uuid",
+  "filename": "statement.csv",
   "status": "mapping_required",
-  "detectedColumns": ["date", "amount", "description"]
+  "detectedColumns": ["date", "amount", "description"],
+  "rowCount": 2,
+  "expiresAt": "2026-06-03T10:00:00.000Z"
 }
 ```
 
-### POST `/api/v1/imports/{importId}/confirm`
+### POST `/api/v1/imports/{importId}/preview`
+
+Protected. The import lookup and destination account lookup are scoped by the
+authenticated user. One account is selected for the whole statement and currency
+is derived from that account.
 
 Request:
 
 ```json
 {
+  "accountId": "uuid",
+  "amountSignConvention": "positive_income",
   "mapping": {
-    "date": "transactionAt",
+    "transactionAt": "date",
     "amount": "amount",
-    "description": "merchant"
+    "merchant": "description"
   }
 }
 ```
+
+`transactionAt` and `amount` are required mappings. `merchant` is optional.
+`amountSignConvention` is `positive_income` or `positive_expense`. Dates accept
+`YYYY-MM-DD` as midnight in the user's timezone or ISO 8601 datetimes with an
+explicit offset. Amounts use strict signed decimals with `.` as the decimal
+separator; zero, thousands separators, and locale decimal formats are rejected.
+
+Response:
+
+```json
+{
+  "importId": "uuid",
+  "status": "ready_to_import",
+  "summary": {
+    "totalRowCount": 2,
+    "validRowCount": 2,
+    "invalidRowCount": 0,
+    "incomeRowCount": 1,
+    "expenseRowCount": 1,
+    "importedRowCount": 0
+  },
+  "rows": [
+    {
+      "rowNumber": 2,
+      "transactionAt": "2026-06-01T17:00:00.000Z",
+      "amount": "125000.0000",
+      "currency": "IDR",
+      "type": "expense",
+      "merchant": "Lunch",
+      "errors": []
+    }
+  ]
+}
+```
+
+Preview responses return normalized mapped fields and safe row errors only. Raw
+unselected columns are never exposed.
+
+### POST `/api/v1/imports/{importId}/confirm`
+
+Protected. Uses the last successful preview, revalidates every row inside one
+database transaction, and rejects the entire import if any row or the destination
+account is invalid. Repeated confirmation returns the completed summary without
+creating duplicate ledger rows.
+
+Confirmed rows are normal uncategorized, note-free income/expense transactions
+with `source = "import"`. They have null transfer and recurring metadata and
+naturally affect account balances, dashboard, and reports.
+
+### GET `/api/v1/imports`
+
+Protected cursor-paginated recent import history. Returns safe summary fields,
+filename, status, and timestamps only. Staged rows and raw mapping internals are
+never returned.
 
 ## Export
 

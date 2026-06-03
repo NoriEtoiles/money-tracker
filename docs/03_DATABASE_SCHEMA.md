@@ -122,6 +122,8 @@ CREATE TABLE transactions (
   transfer_side TEXT,
   recurring_rule_id UUID,
   recurring_occurrence_at TIMESTAMPTZ,
+  import_id UUID,
+  import_row_number INT,
   type TEXT NOT NULL,
   amount NUMERIC(18,4) NOT NULL,
   currency CHAR(3) NOT NULL,
@@ -142,6 +144,7 @@ CREATE INDEX idx_transactions_category_date ON transactions(category_id, transac
 CREATE INDEX idx_transactions_user_transfer_group ON transactions(user_id, transfer_group_id);
 CREATE INDEX idx_transactions_transfer_group_side ON transactions(transfer_group_id, transfer_side);
 CREATE INDEX idx_transactions_recurring_rule_id ON transactions(recurring_rule_id);
+CREATE INDEX idx_transactions_import_id ON transactions(import_id);
 
 ALTER TABLE transactions
   ADD CONSTRAINT chk_transactions_type
@@ -198,15 +201,37 @@ ALTER TABLE transactions
 
 CREATE UNIQUE INDEX ux_transactions_recurring_occurrence
   ON transactions(user_id, recurring_rule_id, recurring_occurrence_at);
+
+ALTER TABLE transactions
+  ADD CONSTRAINT chk_transactions_import_shape
+  CHECK (
+    (
+      source = 'import'
+      AND import_id IS NOT NULL
+      AND import_row_number IS NOT NULL
+      AND import_row_number >= 1
+    )
+    OR
+    (
+      source <> 'import'
+      AND import_id IS NULL
+      AND import_row_number IS NULL
+    )
+  );
+
+CREATE UNIQUE INDEX ux_transactions_import_row
+  ON transactions(user_id, import_id, import_row_number);
 ```
 
 Transfers use two linked `transactions` rows with the same `transfer_group_id`:
 one `outflow` leg from the source account and one `inflow` leg to the destination
 account. Transfer rows must not have a category and must be excluded from normal
-income/expense reports. FX transfers, imports, and external IDs are deferred to
-later steps. Recurring-generated transactions are normal income/expense rows with
+income/expense reports. FX transfers and external IDs are deferred to later
+steps. Recurring-generated transactions are normal income/expense rows with
 `source = 'recurring'`; their unfiltered unique occurrence index remains effective
-after soft delete so an occurrence cannot be generated twice.
+after soft delete so an occurrence cannot be generated twice. Imported rows are
+normal uncategorized income/expense rows with `source = 'import'`; their unfiltered
+unique import-row index prevents retry duplication even after soft delete.
 
 ### transaction_tags
 
@@ -301,17 +326,34 @@ rule with a safe error code.
 ```sql
 CREATE TABLE imports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id),
+  user_id UUID NOT NULL,
   filename TEXT NOT NULL,
   status TEXT NOT NULL,
+  staged_rows JSONB,
   mapping JSONB,
   summary JSONB,
+  expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  CONSTRAINT fk_imports_user_id
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CHECK (status IN (
+    'mapping_required',
+    'validation_failed',
+    'ready_to_import',
+    'completed',
+    'expired'
+  ))
 );
 
-CREATE INDEX idx_imports_user_id ON imports(user_id);
+CREATE INDEX idx_imports_user_created ON imports(user_id, created_at DESC);
 ```
+
+CSV import stores parsed staging rows only, never raw CSV bytes. Staging and
+mapping payloads are cleared after atomic confirmation or after a 24-hour expiry.
+Imported ledger rows derive currency from one selected user-owned account, remain
+uncategorized, and have no notes.
 
 ### exports
 
@@ -425,10 +467,12 @@ erDiagram
   USERS ||--o{ TRANSACTIONS : creates
   USERS ||--o{ BUDGETS : owns
   USERS ||--o{ RECURRING_RULES : owns
+  USERS ||--o{ IMPORTS : owns
   USERS ||--o{ AUDIT_EVENTS : generates
 
   ACCOUNTS ||--o{ TRANSACTIONS : contains
   CATEGORIES ||--o{ TRANSACTIONS : classifies
   CATEGORIES ||--o{ BUDGETS : limits
   RECURRING_RULES ||--o{ TRANSACTIONS : generates
+  IMPORTS ||--o{ TRANSACTIONS : creates
 ```

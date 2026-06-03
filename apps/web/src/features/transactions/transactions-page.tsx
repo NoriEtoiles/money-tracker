@@ -395,6 +395,9 @@ export function TransactionsPage({
                       {transaction.source === "recurring" ? (
                         <span className="source-pill">Recurring</span>
                       ) : null}
+                      {transaction.source === "import" ? (
+                        <span className="source-pill">Import</span>
+                      ) : null}
                     </div>
                     <div className="balance-block">
                       <strong className={transaction.type === "income" ? "amount-income" : "amount-expense"}>

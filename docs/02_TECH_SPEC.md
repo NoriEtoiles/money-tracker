@@ -185,6 +185,9 @@ MVP:
 - validate rows.
 - import confirmed rows.
 - store import history.
+- stage parsed rows temporarily in PostgreSQL and clear them after confirmation or expiry.
+- import one account statement per file; derive currency from the selected account.
+- use signed decimal amounts to derive income or expense without FX conversion.
 
 ## Notification Strategy
 

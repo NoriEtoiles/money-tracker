@@ -149,6 +149,26 @@ App
 
 Generated recurring ledger rows show a `Recurring` badge in the Transactions list.
 
+## Import Wireframe
+
+```txt
++------------------------------------------------------+
+| Import CSV                                           |
++------------------------------------------------------+
+| 1. Upload statement.csv                              |
+| 2. Select account, date, signed amount, merchant     |
+| 3. Preview valid and invalid rows                    |
+| 4. Confirm only when every row is valid              |
++------------------------------------------------------+
+| Recent Import History                                |
+| statement.csv       completed       24 / 24 imported |
++------------------------------------------------------+
+```
+
+Imported ledger rows show an `Import` badge in the Transactions list. Import
+history exposes safe counts and timestamps only. Row-level errors show row number,
+field, and a safe reason without exposing unselected CSV columns.
+
 ## Settings Wireframe
 
 ```txt

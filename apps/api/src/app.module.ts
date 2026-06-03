@@ -6,6 +6,7 @@ import { AccountsModule } from "./modules/accounts/accounts.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BudgetsModule } from "./modules/budgets/budgets.module";
 import { HealthModule } from "./modules/health/health.module";
+import { ImportsModule } from "./modules/imports/imports.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { RecurringModule } from "./modules/recurring/recurring.module";
@@ -33,7 +34,8 @@ import { PrismaModule } from "./prisma/prisma.module";
     TagsModule,
     TransactionsModule,
     UsersModule,
-    HealthModule
+    HealthModule,
+    ImportsModule
   ]
 })
 export class AppModule {}
