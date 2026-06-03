@@ -264,7 +264,8 @@ Docs:
     - The generated expense updated account balance, budget spent amount, dashboard monthly expense, and spending report amount.
     - Pause, resume, archive, safe audit metadata, and the unfiltered database unique occurrence index were verified.
 - Final Step 12 CSV Import MVP implementation:
-  - Step 12 changes are implemented and validated locally but are not committed or pushed yet.
+  - Step 12 changes were implemented, automated validation passed, HTTP/database smoke passed, human visual smoke passed, committed as `0e7493e Implement CSV import MVP`, and pushed to GitHub.
+  - Latest verified repo state after the Step 12 push: branch `main`, working tree clean.
   - `GET /api/v1/imports`, `POST /api/v1/imports/csv`, `POST /api/v1/imports/{importId}/preview`, and `POST /api/v1/imports/{importId}/confirm` are protected by `JwtAuthGuard`.
   - UTF-8 CSV upload supports deterministic comma/semicolon detection, maximum 1 MiB, maximum 1,000 data rows, maximum 50 columns, strict signed decimal amounts, and unambiguous ISO dates.
   - Confirmed imported rows are uncategorized, note-free, normal income/expense ledger rows with `source = "import"` and null transfer/recurring metadata.
@@ -284,12 +285,13 @@ Docs:
 
 ## 9. Next Recommended Task
 
-Step 12 CSV Import is complete. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, continue Step 13:
+Step 12 CSV Import MVP is complete, validated, committed, and pushed. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, the next recommended task is Step 13: CSV Export MVP.
 
-1. Create export request.
-2. Generate transaction CSV.
-3. Return signed download URL.
-4. Audit export action.
+Confirmed Step 13 scope from `docs/tasks/IMPLEMENTATION_ORDER.md`:
+- export request
+- generate CSV
+- signed download
+- audit event
 
 ## 10. Exact Prompt for Next Codex Session
 
