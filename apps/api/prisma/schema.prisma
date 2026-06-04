@@ -29,6 +29,7 @@ model User {
   budgets         Budget[]
   recurringRules  RecurringRule[]
   csvImports      CsvImport[]
+  csvExports      CsvExport[]
 
   @@map("users")
 }
@@ -229,4 +230,21 @@ model CsvImport {
 
   @@index([userId, createdAt(sort: Desc)], map: "idx_imports_user_created")
   @@map("imports")
+}
+
+model CsvExport {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  exportType  String    @map("export_type")
+  status      String
+  filters     Json
+  rowCount    Int?      @map("row_count")
+  filename    String
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  user        User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_exports_user_id")
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_exports_user_created")
+  @@map("exports")
 }

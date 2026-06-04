@@ -125,6 +125,7 @@ This foundation includes:
 - read-only reports API/UI for spending by category, monthly cashflow, and basic net worth charts
 - recurring rule CRUD API/UI with daily, weekly, and monthly schedules, automatic generation, duplicate prevention, and pause/resume/archive actions
 - CSV statement import API/UI with column mapping, safe preview validation, atomic confirmation, and recent import history
+- CSV transaction export API/UI with filterable on-demand generation, short-lived signed download, safe history, and audit events
 - lint/typecheck/test scripts
 - basic CI workflow
 
@@ -173,13 +174,18 @@ Core endpoints:
 - `POST /api/v1/imports/csv`
 - `POST /api/v1/imports/{importId}/preview`
 - `POST /api/v1/imports/{importId}/confirm`
+- `GET /api/v1/exports`
+- `POST /api/v1/exports`
+- `GET /api/v1/exports/{exportId}`
+- `GET /api/v1/exports/{exportId}/download`
 
 ## Next Recommended Task
 
-Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 13: CSV Export**:
-- export request
-- generate CSV
-- signed download
-- audit event
+Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 14: Settings and Privacy**:
+- profile settings
+- security settings
+- data export shortcut
+- delete account request
+- audit log view
 
 Keep each task small, tested, and aligned with `AGENTS.md`.

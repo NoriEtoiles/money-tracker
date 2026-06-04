@@ -1113,35 +1113,138 @@ never returned.
 
 ## Export
 
+CSV Export MVP supports transaction CSV export only. Export requests store safe
+filters and metadata, but CSV bytes are not stored. Downloads are generated on
+demand from the stored filters, so the export is not an immutable snapshot.
+
 ### POST `/api/v1/exports`
+
+Protected. Creates a short-lived transaction CSV export request for the
+authenticated user. `dateFrom` uses UTC date-only inclusive semantics. `dateTo`
+is user-facing inclusive and queried as `< nextDay(dateTo)`. `currency` filters
+only; no FX conversion is performed.
 
 Request:
 
 ```json
 {
-  "type": "transactions_csv",
+  "exportType": "transactions_csv",
   "dateFrom": "2026-01-01",
-  "dateTo": "2026-12-31"
+  "dateTo": "2026-12-31",
+  "accountId": "uuid",
+  "currency": "IDR",
+  "transactionType": "expense"
 }
 ```
+
+All filters except `exportType` are optional. `transactionType` may be `income`,
+`expense`, or `transfer`. When `accountId` is provided, the account lookup is
+scoped by authenticated user and deleted accounts are rejected.
 
 Response:
 
 ```json
 {
   "exportId": "uuid",
-  "status": "queued"
+  "exportType": "transactions_csv",
+  "status": "ready",
+  "filters": {
+    "dateFrom": "2026-01-01",
+    "dateTo": "2026-12-31",
+    "accountId": "uuid",
+    "currency": "IDR",
+    "transactionType": "expense"
+  },
+  "filename": "money-tracker-transactions-2026-01-01-to-2026-12-31-2026-06-03.csv",
+  "rowCount": null,
+  "downloadUrl": "/exports/{exportId}/download?token=signed-token",
+  "expiresAt": "2026-06-03T10:15:00.000Z",
+  "createdAt": "2026-06-03T10:00:00.000Z",
+  "completedAt": null
 }
 ```
 
 ### GET `/api/v1/exports/{exportId}`
 
+Protected. Export lookup is scoped by authenticated user. Expired exports return
+`status = "expired"` and `downloadUrl = null`.
+
 Response:
 
 ```json
 {
+  "exportId": "uuid",
+  "exportType": "transactions_csv",
   "status": "ready",
-  "downloadUrl": "signed-url",
-  "expiresAt": "2026-05-16T10:00:00+07:00"
+  "filters": {
+    "dateFrom": "2026-01-01",
+    "dateTo": "2026-12-31"
+  },
+  "filename": "money-tracker-transactions-2026-01-01-to-2026-12-31-2026-06-03.csv",
+  "rowCount": null,
+  "downloadUrl": "/exports/{exportId}/download?token=signed-token",
+  "expiresAt": "2026-06-03T10:15:00.000Z",
+  "createdAt": "2026-06-03T10:00:00.000Z",
+  "completedAt": null
 }
 ```
+
+### GET `/api/v1/exports`
+
+Protected cursor-paginated export history for the authenticated user. Returns
+safe metadata only; CSV content is never returned from history. Signed download
+URLs may be returned to the authenticated client until expiry, but raw tokens are
+not persisted, audited, or logged.
+
+Query params:
+- `cursor`
+- `limit`
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "exportId": "uuid",
+      "exportType": "transactions_csv",
+      "status": "downloaded",
+      "filters": {
+        "dateFrom": "2026-01-01",
+        "dateTo": "2026-12-31"
+      },
+      "filename": "money-tracker-transactions-2026-01-01-to-2026-12-31-2026-06-03.csv",
+      "rowCount": 24,
+      "downloadUrl": "/exports/{exportId}/download?token=signed-token",
+      "expiresAt": "2026-06-03T10:15:00.000Z",
+      "createdAt": "2026-06-03T10:00:00.000Z",
+      "completedAt": "2026-06-03T10:02:00.000Z"
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+### GET `/api/v1/exports/{exportId}/download?token=...`
+
+Protected. Requires both an active bearer token and a valid signed download
+token. The signed token is short-lived, purpose-bound to CSV export download,
+tamper-resistant, and not stored raw. Wrong-user, expired, and tampered tokens
+are rejected.
+
+Response is UTF-8 `text/csv` with `Content-Disposition: attachment`.
+
+CSV columns, in stable order:
+
+```txt
+transaction_id,transaction_at,transaction_type,amount,currency,account_id,account_name,account_type,category_id,category_name,merchant,note,status,source,transfer_group_id,transfer_side
+```
+
+Rows include the authenticated user's non-deleted ledger rows only, including
+income, expense, and transfer legs. Deleted rows, soft-deleted rows, other-user
+rows, and rows attached to deleted accounts are excluded. Amounts are decimal
+strings with four fractional digits. `source` identifies `manual`, `recurring`,
+or `import` rows without exposing import or recurring internal IDs. Transfer
+rows include `transfer_group_id` and `transfer_side` so linked transfer legs can
+be understood. User-entered text fields are escaped for CSV and neutralized
+against spreadsheet formula injection.

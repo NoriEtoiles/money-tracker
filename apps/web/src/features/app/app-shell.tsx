@@ -7,6 +7,7 @@ import { AuthPanel } from "../auth/auth-panel";
 import { BudgetsPage } from "../budgets/budgets-page";
 import { CategoriesPage } from "../categories/categories-page";
 import { DashboardPage } from "../dashboard/dashboard-page";
+import { ExportsPage } from "../exports/exports-page";
 import { ImportsPage } from "../imports/imports-page";
 import { ReportsPage } from "../reports/reports-page";
 import { RecurringPage } from "../recurring/recurring-page";
@@ -26,6 +27,7 @@ type AppTab =
   | "budgets"
   | "categories"
   | "dashboard"
+  | "exports"
   | "imports"
   | "reports"
   | "recurring"
@@ -47,6 +49,7 @@ const appTabs: Array<{ label: string; value: AppTab }> = [
   { label: "Reports", value: "reports" },
   { label: "Recurring", value: "recurring" },
   { label: "Import", value: "imports" },
+  { label: "Export", value: "exports" },
   { label: "Categories", value: "categories" },
   { label: "Tags", value: "tags" }
 ];
@@ -238,6 +241,18 @@ export function AppShell(): React.ReactElement {
   if (activeTab === "imports") {
     return (
       <ImportsPage
+        accessToken={session.accessToken}
+        currentUser={currentUser}
+        message={message}
+        navigation={navigation}
+        onLogout={() => void handleLogout()}
+      />
+    );
+  }
+
+  if (activeTab === "exports") {
+    return (
+      <ExportsPage
         accessToken={session.accessToken}
         currentUser={currentUser}
         message={message}

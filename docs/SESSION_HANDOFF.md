@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 12:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 13:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -31,6 +31,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 12:
 - Step 10 Reports: guarded spending, cashflow, and net worth endpoints, Reports UI tab with chart-style views, API docs, and unit tests done.
 - Step 11 Recurring Transactions: guarded recurring rule CRUD/lifecycle endpoints, in-process scheduled generation, duplicate prevention, Recurring UI tab, and unit tests done.
 - Step 12 CSV Import: guarded upload/preview/confirm/history endpoints, temporary parsed staging, atomic ledger confirmation, Import UI tab, and unit tests done.
+- Step 13 CSV Export: guarded export request/status/history/download endpoints, on-demand transaction CSV generation, signed download, Export UI tab, audit events, and unit tests done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -54,6 +55,7 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - Reports API/UI: read-only spending by category, monthly cashflow, and current net worth snapshot reports with per-currency grouping and chart-style web views.
 - Recurring API/UI: daily, weekly, and monthly income/expense rules with user-timezone schedules, automatic generation, duplicate prevention, and pause/resume/archive actions.
 - CSV Import API/UI: account-statement upload, comma/semicolon detection, safe mapped preview, all-or-nothing confirmation, expiry cleanup, recent safe history, and imported transaction badge.
+- CSV Export API/UI: transaction CSV export requests, optional filters, short-lived signed downloads, safe export history, and audit events.
 
 ## 5. Important Files
 
@@ -67,11 +69,13 @@ Backend:
 - `apps/api/src/modules/reports/reports.service.spec.ts`
 - `apps/api/src/modules/recurring/*`
 - `apps/api/src/modules/imports/*`
+- `apps/api/src/modules/exports/*`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
 - `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
 - `apps/api/prisma/migrations/20260531000000_recurring_rules/migration.sql`
 - `apps/api/prisma/migrations/20260602000000_csv_imports/migration.sql`
+- `apps/api/prisma/migrations/20260603000000_csv_exports/migration.sql`
 
 Frontend:
 - `apps/web/src/features/app/app-shell.tsx`
@@ -82,6 +86,7 @@ Frontend:
 - `apps/web/src/features/reports/reports-page.tsx`
 - `apps/web/src/features/recurring/recurring-page.tsx`
 - `apps/web/src/features/imports/imports-page.tsx`
+- `apps/web/src/features/exports/exports-page.tsx`
 - `apps/web/src/lib/api/transactions.ts`
 - `apps/web/src/lib/api/transfers.ts`
 - `apps/web/src/lib/api/budgets.ts`
@@ -89,6 +94,7 @@ Frontend:
 - `apps/web/src/lib/api/reports.ts`
 - `apps/web/src/lib/api/recurring-rules.ts`
 - `apps/web/src/lib/api/imports.ts`
+- `apps/web/src/lib/api/exports.ts`
 - Existing account/category/tag feature files and selectors
 
 Docs:
@@ -132,6 +138,13 @@ Docs:
 - Parsed CSV staging rows expire after 24 hours and are cleared after confirmation or expiry; raw CSV bytes are never stored.
 - Import confirmation revalidates all rows inside one Prisma transaction, creates uncategorized note-free `source = "import"` ledger rows, applies one decimal-safe balance delta, and stores safe count-only audit metadata.
 - Import retry uniqueness is enforced by unfiltered `(user_id, import_id, import_row_number)` uniqueness, including after soft delete. Separate uploads may contain identical rows.
+- Step 13 CSV Export uses `exportType = "transactions_csv"` and `transactionType` for transaction filtering to avoid DTO naming ambiguity.
+- CSV Export stores only safe request filters and metadata; CSV bytes and raw signed tokens are not persisted, so exports are on-demand downloads rather than immutable snapshots.
+- CSV Export supports optional `dateFrom`, `dateTo`, `accountId`, `currency`, and `transactionType` filters; date ranges reuse Step 10 UTC date-only inclusive semantics.
+- CSV Export includes non-deleted ledger rows for the authenticated user, including transfer legs, and excludes other-user rows, deleted/soft-deleted rows, and rows attached to deleted accounts.
+- CSV Export amount values use `Prisma.Decimal.toFixed(4)` strings, preserve original currencies, and never perform FX conversion.
+- CSV Export signed downloads require active bearer auth plus a short-lived purpose-bound token; wrong-user, expired, and tampered token cases are rejected.
+- CSV Export audit metadata is privacy-first: safe filters, status, row count, and timestamps only; CSV content, notes, merchant text, raw URLs, and tokens are not audited.
 - Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before production hardening.
 
 ## 7. Current Unfinished Work
@@ -139,7 +152,7 @@ Docs:
 - Create-first-account onboarding flow polish.
 - Database-backed integration tests for user-owned authorization isolation.
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
-- CSV export and settings/privacy are not implemented.
+- Settings/privacy is not implemented.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
 
@@ -282,16 +295,41 @@ Docs:
     - `git diff --check`
   - HTTP/database smoke passed with 32 assertions:
     - Upload, delimiter detection, preview validation, safe response surfaces, atomic confirmation, repeated confirmation, balance mutation, dashboard/reports propagation, transfer exclusion, currency separation, cross-user denial, unavailable-account rejection, staging cleanup, count-only audit metadata, and unfiltered database retry uniqueness after soft delete were verified.
+- Final Step 13 CSV Export MVP implementation:
+  - Step 13 changes were implemented and validated in the working tree. Commit/push has not been performed in this session.
+  - `GET /api/v1/exports`, `POST /api/v1/exports`, `GET /api/v1/exports/{exportId}`, and `GET /api/v1/exports/{exportId}/download?token=...` are protected by `JwtAuthGuard`.
+  - Export requests store safe filters and metadata in `exports`; CSV content and raw signed tokens are never stored.
+  - Transaction CSV is generated on demand at download time from stored filters. `rowCount` is updated to match the rows actually sent during download.
+  - Download requires both active bearer auth and a short-lived signed token bound to export id, user id, purpose, and expiry.
+  - CSV rows include non-deleted income, expense, and transfer ledger rows, including transfer group/side fields, while excluding other-user rows, deleted rows, soft-deleted rows, and rows attached to deleted accounts.
+  - CSV amount values remain decimal strings with four fractional digits; currencies are filtered/exported only and never converted.
+  - CSV text fields are escaped and user-entered text is neutralized against spreadsheet formula injection.
+  - Export UI tab supports date range, account, currency, transaction type filters, request export, history, and authenticated blob download.
+  - Validation passed:
+    - `docker compose up -d postgres`
+    - `npm.cmd run db:migrate`
+    - `npm.cmd run db:generate`
+    - `npm.cmd run typecheck`
+    - `npm.cmd run lint`
+    - `npm.cmd run test`: API 86 tests, Web 4 tests
+    - `npm.cmd run build`
+    - `npx.cmd prisma migrate status --schema apps/api/prisma/schema.prisma`
+    - `git diff --check` exited 0 with CRLF normalization warnings only
+  - HTTP/API smoke passed:
+    - Registered users, created accounts, created income/expense transactions and a transfer, requested export, checked status/history, downloaded CSV, verified signed token tamper rejection, cross-user status/download denial, CSV formula neutralization, no `user_id` in CSV, downloaded row count, and safe audit metadata.
+  - Human visual smoke passed:
+    - Export tab loaded through the web app, filters rendered, export request succeeded from UI, history/download row appeared, and screenshot inspection showed no incoherent overlap in the Export UI.
 
 ## 9. Next Recommended Task
 
-Step 12 CSV Import MVP is complete, validated, committed, and pushed. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, the next recommended task is Step 13: CSV Export MVP.
+Step 13 CSV Export MVP is complete and validated in the working tree. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, the next recommended task is Step 14: Settings and Privacy.
 
-Confirmed Step 13 scope from `docs/tasks/IMPLEMENTATION_ORDER.md`:
-- export request
-- generate CSV
-- signed download
-- audit event
+Confirmed Step 14 scope from `docs/tasks/IMPLEMENTATION_ORDER.md`:
+- profile settings
+- security settings
+- data export shortcut
+- delete account request
+- audit log view
 
 ## 10. Exact Prompt for Next Codex Session
 
@@ -301,15 +339,15 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Implement Step 13: CSV Export. Step 12 CSV Import is complete.
+Plan and implement Step 14: Settings and Privacy. Step 13 CSV Export is complete.
 
 Requirements:
 - Use plan mode first.
 - Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build`.
 - Do not implement bank sync, OCR, AI insight, attachments, shared finance, or investments.
-- Build on the existing Step 6 transaction ledger and Step 12 import source metadata.
+- Keep settings/privacy changes narrow and aligned with existing auth, users, exports, and audit patterns.
 - Keep all user-owned behavior scoped through the authenticated session.
-- Use decimal-safe money handling only.
-- Add tests for export authorization isolation, date filtering, CSV generation, safe payloads, and export audit events.
+- Do not expose raw tokens, password hashes, financial notes, CSV contents, or other sensitive payloads in settings/privacy surfaces.
+- Add tests for authorization isolation and privacy-safe audit/log behavior where applicable.
 - Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
 ```

@@ -5,6 +5,7 @@ import { validateEnv } from "./config/env.validation";
 import { AccountsModule } from "./modules/accounts/accounts.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BudgetsModule } from "./modules/budgets/budgets.module";
+import { ExportsModule } from "./modules/exports/exports.module";
 import { HealthModule } from "./modules/health/health.module";
 import { ImportsModule } from "./modules/imports/imports.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
@@ -35,7 +36,8 @@ import { PrismaModule } from "./prisma/prisma.module";
     TransactionsModule,
     UsersModule,
     HealthModule,
-    ImportsModule
+    ImportsModule,
+    ExportsModule
   ]
 })
 export class AppModule {}

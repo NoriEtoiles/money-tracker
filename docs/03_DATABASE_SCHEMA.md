@@ -360,17 +360,31 @@ uncategorized, and have no notes.
 ```sql
 CREATE TABLE exports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id),
-  type TEXT NOT NULL,
+  user_id UUID NOT NULL,
+  export_type TEXT NOT NULL,
   status TEXT NOT NULL,
-  file_url TEXT,
-  expires_at TIMESTAMPTZ,
+  filters JSONB NOT NULL,
+  row_count INT,
+  filename TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  CONSTRAINT fk_exports_user_id
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CHECK (export_type IN ('transactions_csv')),
+  CHECK (status IN ('ready', 'downloaded', 'expired')),
+  CHECK (row_count IS NULL OR row_count >= 0)
 );
 
-CREATE INDEX idx_exports_user_id ON exports(user_id);
+CREATE INDEX idx_exports_user_created ON exports(user_id, created_at DESC);
 ```
+
+CSV exports store only the authenticated user's export request metadata and safe
+filters. The MVP does not persist CSV bytes, raw signed tokens, object storage
+URLs, server paths, or raw download URLs. Transaction CSV content is generated on
+demand during authenticated signed download, so `row_count` is nullable until the
+CSV has actually been generated.
 
 ### audit_events
 
