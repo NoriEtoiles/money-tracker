@@ -9,7 +9,7 @@ import { TokenService } from "./token.service";
 
 @Module({
   controllers: [AuthController],
-  exports: [JwtAuthGuard, TokenService],
+  exports: [JwtAuthGuard, PasswordService, TokenService],
   imports: [AuditModule, JwtModule.register({})],
   providers: [AuthService, JwtAuthGuard, PasswordService, TokenService]
 })

@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 13:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 14:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -32,6 +32,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 13:
 - Step 11 Recurring Transactions: guarded recurring rule CRUD/lifecycle endpoints, in-process scheduled generation, duplicate prevention, Recurring UI tab, and unit tests done.
 - Step 12 CSV Import: guarded upload/preview/confirm/history endpoints, temporary parsed staging, atomic ledger confirmation, Import UI tab, and unit tests done.
 - Step 13 CSV Export: guarded export request/status/history/download endpoints, on-demand transaction CSV generation, signed download, Export UI tab, audit events, and unit tests done.
+- Step 14 Settings and Privacy: profile settings, password change, active session management, export shortcut, delete-account request intent flow, sanitized audit log view, migration, docs, unit tests, HTTP smoke, and visual smoke done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -56,6 +57,7 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - Recurring API/UI: daily, weekly, and monthly income/expense rules with user-timezone schedules, automatic generation, duplicate prevention, and pause/resume/archive actions.
 - CSV Import API/UI: account-statement upload, comma/semicolon detection, safe mapped preview, all-or-nothing confirmation, expiry cleanup, recent safe history, and imported transaction badge.
 - CSV Export API/UI: transaction CSV export requests, optional filters, short-lived signed downloads, safe export history, and audit events.
+- Settings and Privacy API/UI: profile update reuse, password change, active session list/revoke, data export shortcut, pending delete-account request, and sanitized audit log view.
 
 ## 5. Important Files
 
@@ -70,12 +72,16 @@ Backend:
 - `apps/api/src/modules/recurring/*`
 - `apps/api/src/modules/imports/*`
 - `apps/api/src/modules/exports/*`
+- `apps/api/src/modules/settings/*`
+- `apps/api/src/modules/audit/*`
+- `apps/api/src/modules/auth/*`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
 - `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
 - `apps/api/prisma/migrations/20260531000000_recurring_rules/migration.sql`
 - `apps/api/prisma/migrations/20260602000000_csv_imports/migration.sql`
 - `apps/api/prisma/migrations/20260603000000_csv_exports/migration.sql`
+- `apps/api/prisma/migrations/20260604000000_settings_privacy/migration.sql`
 
 Frontend:
 - `apps/web/src/features/app/app-shell.tsx`
@@ -87,6 +93,7 @@ Frontend:
 - `apps/web/src/features/recurring/recurring-page.tsx`
 - `apps/web/src/features/imports/imports-page.tsx`
 - `apps/web/src/features/exports/exports-page.tsx`
+- `apps/web/src/features/settings/settings-page.tsx`
 - `apps/web/src/lib/api/transactions.ts`
 - `apps/web/src/lib/api/transfers.ts`
 - `apps/web/src/lib/api/budgets.ts`
@@ -95,6 +102,7 @@ Frontend:
 - `apps/web/src/lib/api/recurring-rules.ts`
 - `apps/web/src/lib/api/imports.ts`
 - `apps/web/src/lib/api/exports.ts`
+- `apps/web/src/lib/api/settings.ts`
 - Existing account/category/tag feature files and selectors
 
 Docs:
@@ -145,6 +153,15 @@ Docs:
 - CSV Export amount values use `Prisma.Decimal.toFixed(4)` strings, preserve original currencies, and never perform FX conversion.
 - CSV Export signed downloads require active bearer auth plus a short-lived purpose-bound token; wrong-user, expired, and tampered token cases are rejected.
 - CSV Export audit metadata is privacy-first: safe filters, status, row count, and timestamps only; CSV content, notes, merchant text, raw URLs, and tokens are not audited.
+- Step 14 profile settings reuse existing `GET/PATCH /api/v1/me` fields only: `displayName`, `defaultCurrency`, `locale`, and `timezone`.
+- Profile update audit metadata stores changed field names only, never profile values.
+- Change password verifies the current password, updates the password hash, keeps the current session active, and revokes other active sessions.
+- Session list/revoke endpoints are scoped by authenticated `userId`; revoked sessions are rejected by the existing `JwtAuthGuard` because it requires `revokedAt = null`.
+- Session responses never expose refresh tokens, token hashes, password hashes, raw tokens, or session secrets.
+- Delete-account request is an intent flow only. It creates/returns one pending request per user through a partial unique index and does not hard-delete users or financial records.
+- Delete-account request validation requires current password plus exact phrase `DELETE MY ACCOUNT`, but neither value is stored or audited.
+- User-facing audit log responses are explicitly whitelist-sanitized and drop unknown/unsafe metadata, including secrets, tokens, raw URLs, server paths, notes, merchants, CSV content, raw request bodies, emails, password data, and arbitrary nested metadata.
+- Settings Data Export is only a UI shortcut to the existing Export tab; CSV Export core behavior was not changed.
 - Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before production hardening.
 
 ## 7. Current Unfinished Work
@@ -152,9 +169,9 @@ Docs:
 - Create-first-account onboarding flow polish.
 - Database-backed integration tests for user-owned authorization isolation.
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
-- Settings/privacy is not implemented.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
+- Step 15 Production Hardening is not implemented yet.
 
 ## 8. Known Bugs or Risks
 
@@ -319,17 +336,39 @@ Docs:
     - Registered users, created accounts, created income/expense transactions and a transfer, requested export, checked status/history, downloaded CSV, verified signed token tamper rejection, cross-user status/download denial, CSV formula neutralization, no `user_id` in CSV, downloaded row count, and safe audit metadata.
   - Human visual smoke passed:
     - Export tab loaded through the web app, filters rendered, export request succeeded from UI, history/download row appeared, and screenshot inspection showed no incoherent overlap in the Export UI.
+- Final Step 14 Settings and Privacy MVP implementation:
+  - Step 14 changes were implemented and validated in the working tree. Commit/push has not been performed in this session.
+  - `POST /api/v1/auth/change-password`, `GET /api/v1/auth/sessions`, `POST /api/v1/auth/sessions/{sessionId}/revoke`, and `POST /api/v1/auth/sessions/revoke-others` are protected by `JwtAuthGuard`.
+  - `GET/POST /api/v1/me/deletion-request` records an idempotent pending account deletion request only; no user or financial data is hard-deleted.
+  - `GET /api/v1/audit-events` returns cursor-paginated, authenticated user-scoped audit events with whitelist-sanitized metadata.
+  - Settings UI tab supports Profile, Security, Data Export shortcut, Delete Account Request, and Audit Log sections.
+  - Validation passed:
+    - `docker compose up -d postgres`
+    - `npm.cmd run db:migrate`
+    - `npm.cmd run db:generate`
+    - `npm.cmd run typecheck`
+    - `npm.cmd run lint`
+    - `npm.cmd run test`: API 98 tests, Web 7 tests
+    - `npm.cmd run build`
+    - `npx.cmd prisma migrate status --schema apps/api/prisma/schema.prisma`
+    - `git diff --check` exited 0 with CRLF normalization warnings only
+  - HTTP/API smoke passed with 22 assertions:
+    - Register/login, profile update, active session list, current-session revoke rejection, other-session revoke, revoked-token guard denial, password change current-session preservation, new-password login, delete request validation/idempotency, user still active after request, audit log user scoping, and no password/token/raw URL leakage in audit response were verified.
+  - Human visual smoke passed:
+    - Settings tab rendered through the web app using a real API-authenticated local session.
+    - Profile, Security, Data Export, Delete Account, and Audit Log sections rendered without desktop horizontal overflow or incoherent overlap in top and bottom screenshots.
 
 ## 9. Next Recommended Task
 
-Step 13 CSV Export MVP is complete and validated in the working tree. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, the next recommended task is Step 14: Settings and Privacy.
+Step 14 Settings and Privacy MVP is complete and validated in the working tree. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, the next recommended task is Step 15: Production Hardening.
 
-Confirmed Step 14 scope from `docs/tasks/IMPLEMENTATION_ORDER.md`:
-- profile settings
-- security settings
-- data export shortcut
-- delete account request
-- audit log view
+Confirmed Step 15 scope from `docs/tasks/IMPLEMENTATION_ORDER.md`:
+- e2e tests
+- security tests
+- performance checks
+- error monitoring
+- backup verification
+- documentation cleanup
 
 ## 10. Exact Prompt for Next Codex Session
 
@@ -339,15 +378,15 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Plan and implement Step 14: Settings and Privacy. Step 13 CSV Export is complete.
+Plan and implement Step 15: Production Hardening. Step 14 Settings and Privacy is complete.
 
 Requirements:
 - Use plan mode first.
 - Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build`.
 - Do not implement bank sync, OCR, AI insight, attachments, shared finance, or investments.
-- Keep settings/privacy changes narrow and aligned with existing auth, users, exports, and audit patterns.
+- Keep production hardening changes narrow and aligned with existing MVP contracts.
 - Keep all user-owned behavior scoped through the authenticated session.
-- Do not expose raw tokens, password hashes, financial notes, CSV contents, or other sensitive payloads in settings/privacy surfaces.
-- Add tests for authorization isolation and privacy-safe audit/log behavior where applicable.
+- Do not expose raw tokens, password hashes, financial notes, CSV contents, or other sensitive payloads in hardening surfaces.
+- Add e2e/security/performance/monitoring/backup/documentation hardening checks where applicable.
 - Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
 ```

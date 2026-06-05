@@ -404,6 +404,33 @@ CREATE TABLE audit_events (
 CREATE INDEX idx_audit_events_user_created ON audit_events(user_id, created_at DESC);
 ```
 
+### account_deletion_requests
+
+```sql
+CREATE TABLE account_deletion_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_account_deletion_requests_user_id
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CHECK (status IN ('pending', 'cancelled', 'completed'))
+);
+
+CREATE INDEX idx_account_deletion_requests_user_requested
+  ON account_deletion_requests(user_id, requested_at DESC);
+
+CREATE UNIQUE INDEX ux_account_deletion_requests_user_pending
+  ON account_deletion_requests(user_id)
+  WHERE status = 'pending';
+```
+
+Delete-account requests record user intent only. They do not hard-delete users,
+sessions, accounts, transactions, or other financial records in the MVP.
+
 ## Phase 2 Tables
 
 ### attachments
@@ -483,6 +510,7 @@ erDiagram
   USERS ||--o{ RECURRING_RULES : owns
   USERS ||--o{ IMPORTS : owns
   USERS ||--o{ AUDIT_EVENTS : generates
+  USERS ||--o{ ACCOUNT_DELETION_REQUESTS : requests
 
   ACCOUNTS ||--o{ TRANSACTIONS : contains
   CATEGORIES ||--o{ TRANSACTIONS : classifies

@@ -47,7 +47,13 @@ Audit these events:
 - delete account request
 - password change
 - session revoke
+- profile update with changed field names only
 - bank connection create/disconnect in future
+
+The MVP audit log view returns only authenticated user events and sanitizes
+metadata through an explicit whitelist. It does not return arbitrary nested
+metadata, secrets, tokens, raw URLs, server paths, notes, merchants, CSV content,
+raw request bodies, password data, or unnecessary emails.
 
 ### Privacy
 
@@ -57,6 +63,10 @@ User must be able to:
 - understand what data is stored,
 - disconnect external integrations,
 - control notification preferences.
+
+Step 14 implements delete account as a request/intent flow only. It records a
+pending request and safe audit event, but does not hard-delete users or financial
+records in the MVP.
 
 ## Data Retention
 

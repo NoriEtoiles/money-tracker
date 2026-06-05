@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { logout, LoginResponse } from "../../lib/api/auth";
 import { AccountsPage } from "../accounts/accounts-page";
 import { AuthPanel } from "../auth/auth-panel";
@@ -11,6 +11,7 @@ import { ExportsPage } from "../exports/exports-page";
 import { ImportsPage } from "../imports/imports-page";
 import { ReportsPage } from "../reports/reports-page";
 import { RecurringPage } from "../recurring/recurring-page";
+import { SettingsPage } from "../settings/settings-page";
 import { TagsPage } from "../tags/tags-page";
 import { TransactionsPage } from "../transactions/transactions-page";
 import { TransfersPage } from "../transfers/transfers-page";
@@ -31,6 +32,7 @@ type AppTab =
   | "imports"
   | "reports"
   | "recurring"
+  | "settings"
   | "tags"
   | "transactions"
   | "transfers";
@@ -50,6 +52,7 @@ const appTabs: Array<{ label: string; value: AppTab }> = [
   { label: "Recurring", value: "recurring" },
   { label: "Import", value: "imports" },
   { label: "Export", value: "exports" },
+  { label: "Settings", value: "settings" },
   { label: "Categories", value: "categories" },
   { label: "Tags", value: "tags" }
 ];
@@ -108,6 +111,25 @@ export function AppShell(): React.ReactElement {
       setSession(null);
     }
   }
+
+  const handleProfileUpdated = useCallback((profile: { displayName: string; email: string }): void => {
+    setSession((current) => {
+      if (current === null) {
+        return current;
+      }
+
+      const nextSession = {
+        ...current,
+        displayName: profile.displayName,
+        email: profile.email
+      };
+
+      window.localStorage.setItem(displayNameKey, nextSession.displayName);
+      window.localStorage.setItem(emailKey, nextSession.email);
+
+      return nextSession;
+    });
+  }, []);
 
   if (session === null) {
     return (
@@ -258,6 +280,20 @@ export function AppShell(): React.ReactElement {
         message={message}
         navigation={navigation}
         onLogout={() => void handleLogout()}
+      />
+    );
+  }
+
+  if (activeTab === "settings") {
+    return (
+      <SettingsPage
+        accessToken={session.accessToken}
+        currentUser={currentUser}
+        message={message}
+        navigation={navigation}
+        onLogout={() => void handleLogout()}
+        onOpenExport={() => setActiveTab("exports")}
+        onProfileUpdated={handleProfileUpdated}
       />
     );
   }

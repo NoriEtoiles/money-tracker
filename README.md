@@ -126,6 +126,7 @@ This foundation includes:
 - recurring rule CRUD API/UI with daily, weekly, and monthly schedules, automatic generation, duplicate prevention, and pause/resume/archive actions
 - CSV statement import API/UI with column mapping, safe preview validation, atomic confirmation, and recent import history
 - CSV transaction export API/UI with filterable on-demand generation, short-lived signed download, safe history, and audit events
+- settings/privacy UI with profile updates, password change, active session management, export shortcut, delete-account request, and sanitized audit log view
 - lint/typecheck/test scripts
 - basic CI workflow
 
@@ -133,8 +134,15 @@ Core endpoints:
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/change-password`
+- `GET /api/v1/auth/sessions`
+- `POST /api/v1/auth/sessions/{sessionId}/revoke`
+- `POST /api/v1/auth/sessions/revoke-others`
 - `GET /api/v1/me`
 - `PATCH /api/v1/me`
+- `GET /api/v1/me/deletion-request`
+- `POST /api/v1/me/deletion-request`
+- `GET /api/v1/audit-events`
 - `POST /api/v1/onboarding/default-data`
 - `GET /api/v1/accounts`
 - `POST /api/v1/accounts`
@@ -181,11 +189,12 @@ Core endpoints:
 
 ## Next Recommended Task
 
-Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 14: Settings and Privacy**:
-- profile settings
-- security settings
-- data export shortcut
-- delete account request
-- audit log view
+Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 15: Production Hardening**:
+- e2e tests
+- security tests
+- performance checks
+- error monitoring
+- backup verification
+- documentation cleanup
 
 Keep each task small, tested, and aligned with `AGENTS.md`.

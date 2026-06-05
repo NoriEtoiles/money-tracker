@@ -1,9 +1,16 @@
-import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { randomBytes } from "node:crypto";
 import { AuthenticatedUser } from "../../common/auth/authenticated-request";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { PasswordService } from "./password.service";
@@ -27,6 +34,23 @@ export type LoginResponse = {
     email: string;
     id: string;
   };
+};
+
+export type SessionResponse = {
+  createdAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
+  sessionId: string;
+  userAgent: string | null;
+};
+
+export type SessionListResponse = {
+  items: SessionResponse[];
+};
+
+export type RevokeSessionsResponse = {
+  revokedCount: number;
+  success: true;
 };
 
 @Injectable()
@@ -144,6 +168,173 @@ export class AuthService {
     return { success: true };
   }
 
+  async changePassword(
+    user: AuthenticatedUser,
+    dto: ChangePasswordDto
+  ): Promise<RevokeSessionsResponse> {
+    const account = await this.prisma.user.findFirst({
+      select: {
+        id: true,
+        passwordHash: true
+      },
+      where: {
+        deletedAt: null,
+        id: user.userId,
+        status: "active"
+      }
+    });
+    const currentPasswordMatches = account?.passwordHash
+      ? await this.passwordService.verifyPassword(dto.currentPassword, account.passwordHash)
+      : false;
+
+    if (account === null || !currentPasswordMatches) {
+      throw new UnauthorizedException("Current password is invalid");
+    }
+
+    const newPasswordHash = await this.passwordService.hashPassword(dto.newPassword);
+    const revoked = await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        data: {
+          passwordHash: newPasswordHash
+        },
+        where: {
+          id: user.userId
+        }
+      });
+
+      return tx.session.updateMany({
+        data: {
+          revokedAt: new Date()
+        },
+        where: {
+          id: {
+            not: user.sessionId
+          },
+          revokedAt: null,
+          userId: user.userId
+        }
+      });
+    });
+
+    await this.auditService.record({
+      entityId: user.userId,
+      entityType: "user",
+      eventType: "password_change",
+      metadata: {
+        revokedSessionCount: revoked.count
+      },
+      userId: user.userId
+    });
+
+    return {
+      revokedCount: revoked.count,
+      success: true
+    };
+  }
+
+  async listSessions(user: AuthenticatedUser, now = new Date()): Promise<SessionListResponse> {
+    const sessions = await this.prisma.session.findMany({
+      orderBy: [
+        {
+          createdAt: "desc"
+        },
+        {
+          id: "desc"
+        }
+      ],
+      select: {
+        createdAt: true,
+        expiresAt: true,
+        id: true,
+        userAgent: true
+      },
+      where: {
+        expiresAt: {
+          gt: now
+        },
+        revokedAt: null,
+        userId: user.userId
+      }
+    });
+
+    return {
+      items: sessions.map((session) => ({
+        createdAt: session.createdAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        isCurrent: session.id === user.sessionId,
+        sessionId: session.id,
+        userAgent: this.safeUserAgent(session.userAgent)
+      }))
+    };
+  }
+
+  async revokeSession(
+    user: AuthenticatedUser,
+    sessionId: string
+  ): Promise<RevokeSessionsResponse> {
+    if (sessionId === user.sessionId) {
+      throw new BadRequestException("Use logout to revoke the current session");
+    }
+
+    const result = await this.prisma.session.updateMany({
+      data: {
+        revokedAt: new Date()
+      },
+      where: {
+        id: sessionId,
+        revokedAt: null,
+        userId: user.userId
+      }
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException("Session not found");
+    }
+
+    await this.auditService.record({
+      entityType: "session",
+      eventType: "session_revoke",
+      metadata: {
+        revokedCount: result.count
+      },
+      userId: user.userId
+    });
+
+    return {
+      revokedCount: result.count,
+      success: true
+    };
+  }
+
+  async revokeOtherSessions(user: AuthenticatedUser): Promise<RevokeSessionsResponse> {
+    const result = await this.prisma.session.updateMany({
+      data: {
+        revokedAt: new Date()
+      },
+      where: {
+        id: {
+          not: user.sessionId
+        },
+        revokedAt: null,
+        userId: user.userId
+      }
+    });
+
+    await this.auditService.record({
+      entityType: "session",
+      eventType: "session_revoke_others",
+      metadata: {
+        revokedCount: result.count
+      },
+      userId: user.userId
+    });
+
+    return {
+      revokedCount: result.count,
+      success: true
+    };
+  }
+
   private createRefreshToken(): string {
     return randomBytes(32).toString("base64url");
   }
@@ -158,5 +349,15 @@ export class AuthService {
 
   private normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
+  }
+
+  private safeUserAgent(userAgent: string | null): string | null {
+    if (userAgent === null) {
+      return null;
+    }
+
+    const normalized = userAgent.replace(/[\r\n\t]/g, " ").trim();
+
+    return normalized.length <= 160 ? normalized : `${normalized.slice(0, 157)}...`;
   }
 }

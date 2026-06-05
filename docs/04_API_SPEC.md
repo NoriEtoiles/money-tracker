@@ -88,6 +88,79 @@ Response:
 }
 ```
 
+### POST `/api/v1/auth/change-password`
+
+Protected. Verifies the current password, updates the password hash, keeps the
+current session active, revokes other sessions, and emits a safe audit event.
+Passwords, hashes, tokens, and raw password input are never returned or audited.
+
+Request:
+
+```json
+{
+  "currentPassword": "StrongPassword123!",
+  "newPassword": "AnotherStrongPassword123!"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "revokedCount": 1
+}
+```
+
+### GET `/api/v1/auth/sessions`
+
+Protected. Returns active, unrevoked sessions for the authenticated user only.
+The response never includes refresh tokens, token hashes, password hashes, raw
+tokens, or session secrets.
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "sessionId": "uuid",
+      "userAgent": "Mozilla/5.0 ...",
+      "createdAt": "2026-06-04T07:00:00.000Z",
+      "expiresAt": "2026-06-05T07:00:00.000Z",
+      "isCurrent": true
+    }
+  ]
+}
+```
+
+### POST `/api/v1/auth/sessions/{sessionId}/revoke`
+
+Protected. Revokes one other active session owned by the authenticated user.
+The current session must be revoked through logout instead.
+
+Response:
+
+```json
+{
+  "success": true,
+  "revokedCount": 1
+}
+```
+
+### POST `/api/v1/auth/sessions/revoke-others`
+
+Protected. Revokes all other active sessions owned by the authenticated user.
+
+Response:
+
+```json
+{
+  "success": true,
+  "revokedCount": 2
+}
+```
+
 ## Users
 
 ### GET `/api/v1/me`
@@ -132,6 +205,90 @@ Response:
   "timezone": "Asia/Jakarta"
 }
 ```
+
+Profile updates audit only changed field names, never profile values.
+
+### GET `/api/v1/me/deletion-request`
+
+Protected. Returns the authenticated user's pending delete-account request, if
+one exists. This is an intent/request flow only and does not hard-delete user or
+financial data.
+
+Response:
+
+```json
+{
+  "request": {
+    "status": "pending",
+    "requestedAt": "2026-06-04T07:00:00.000Z"
+  }
+}
+```
+
+When no pending request exists:
+
+```json
+{
+  "request": null
+}
+```
+
+### POST `/api/v1/me/deletion-request`
+
+Protected. Requires the current password and exact confirmation phrase
+`DELETE MY ACCOUNT`. Request creation is idempotent for an existing pending
+request and race-safe through a database uniqueness constraint. The API never
+stores the typed phrase or password.
+
+Request:
+
+```json
+{
+  "currentPassword": "StrongPassword123!",
+  "confirmationPhrase": "DELETE MY ACCOUNT"
+}
+```
+
+Response matches `GET /api/v1/me/deletion-request`.
+
+## Audit Events
+
+### GET `/api/v1/audit-events`
+
+Protected cursor-paginated audit log for the authenticated user only.
+
+Query params:
+- `cursor`
+- `limit`
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "eventType": "csv_export_download",
+      "entityType": "export",
+      "createdAt": "2026-06-04T07:00:00.000Z",
+      "metadata": {
+        "status": "downloaded",
+        "rowCount": 24,
+        "filters": {
+          "dateFrom": "2026-01-01",
+          "dateTo": "2026-12-31",
+          "currency": "IDR"
+        }
+      }
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+Audit metadata is returned through an explicit whitelist only. Unknown fields and
+unsafe historical fields are dropped, including secrets, tokens, raw URLs, server
+paths, notes, merchants, CSV content, raw request bodies, emails, password data,
+and arbitrary nested metadata.
 
 ## Onboarding
 

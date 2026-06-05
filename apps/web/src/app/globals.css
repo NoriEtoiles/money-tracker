@@ -563,6 +563,56 @@ button:disabled {
   gap: 12px;
 }
 
+.settings-layout {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 24px;
+}
+
+.settings-profile-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-password-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.settings-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.session-row,
+.audit-row {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 16px;
+}
+
+.session-row p,
+.audit-row p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+
+.settings-audit-panel {
+  margin-top: 24px;
+}
+
+.audit-metadata {
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 .import-row {
   align-items: center;
   background: var(--panel);
@@ -757,18 +807,23 @@ button:disabled {
 
   .workspace-grid,
   .import-layout,
+  .settings-layout,
   .dashboard-layout,
   .report-toolbar,
   .account-row,
   .resource-row,
   .account-edit-form,
   .resource-edit-form,
+  .settings-password-form,
+  .settings-profile-form,
   .tag-edit-form,
   .filter-panel {
     grid-template-columns: 1fr;
   }
 
-  .import-row {
+  .import-row,
+  .session-row,
+  .audit-row {
     grid-template-columns: 1fr;
   }
 
@@ -790,5 +845,9 @@ button:disabled {
 
   .row-actions {
     justify-content: start;
+  }
+
+  .audit-metadata {
+    text-align: left;
   }
 }

@@ -30,6 +30,7 @@ model User {
   recurringRules  RecurringRule[]
   csvImports      CsvImport[]
   csvExports      CsvExport[]
+  deletionRequests AccountDeletionRequest[]
 
   @@map("users")
 }
@@ -247,4 +248,17 @@ model CsvExport {
 
   @@index([userId, createdAt(sort: Desc)], map: "idx_exports_user_created")
   @@map("exports")
+}
+
+model AccountDeletionRequest {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  status      String   @default("pending")
+  requestedAt DateTime @default(now()) @map("requested_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_deletion_requests_user_id")
+
+  @@index([userId, requestedAt(sort: Desc)], map: "idx_account_deletion_requests_user_requested")
+  @@map("account_deletion_requests")
 }
