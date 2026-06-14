@@ -14,8 +14,10 @@
     "dev:web": "npm run dev --workspace @money-tracker/web",
     "db:generate": "npm run db:generate --workspace @money-tracker/api",
     "db:migrate": "npm run db:migrate --workspace @money-tracker/api",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace @money-tracker/api",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace @money-tracker/api",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {

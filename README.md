@@ -91,9 +91,11 @@ Default local URLs:
 - `npm run dev:web` starts the Next.js web app.
 - `npm run db:generate` generates the Prisma client.
 - `npm run db:migrate` runs Prisma migrations when models are added.
+- `npm run db:migrate:deploy` applies existing Prisma migrations for CI/staging-style environments.
 - `npm run typecheck` runs TypeScript checks for all workspaces.
 - `npm run lint` runs ESLint for all workspaces.
 - `npm run test` runs Vitest for all workspaces.
+- `npm run test:e2e` builds the API and runs API-level e2e/security smoke tests against PostgreSQL.
 - `npm run build` builds all workspaces.
 
 ## Current Foundation
@@ -128,7 +130,8 @@ This foundation includes:
 - CSV transaction export API/UI with filterable on-demand generation, short-lived signed download, safe history, and audit events
 - settings/privacy UI with profile updates, password change, active session management, export shortcut, delete-account request, and sanitized audit log view
 - lint/typecheck/test scripts
-- basic CI workflow
+- API-level e2e/security smoke tests for core MVP flows and privacy regressions
+- CI workflow with Prisma migration deploy, unit tests, e2e tests, and build
 
 Core endpoints:
 - `POST /api/v1/auth/register`
@@ -189,11 +192,9 @@ Core endpoints:
 
 ## Next Recommended Task
 
-Follow `docs/tasks/IMPLEMENTATION_ORDER.md` and continue with **Step 15: Production Hardening**:
-- e2e tests
-- security tests
+Step 15A Production Hardening is complete. Continue with Step 15B:
 - performance checks
-- error monitoring
+- error monitoring readiness
 - backup verification
 - documentation cleanup
 

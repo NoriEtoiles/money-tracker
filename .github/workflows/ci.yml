@@ -26,6 +26,7 @@ jobs:
       NODE_ENV: test
       API_PORT: 3001
       DATABASE_URL: postgresql://money_tracker:money_tracker@localhost:5432/money_tracker?schema=public
+      JWT_ACCESS_SECRET: ci-test-secret-with-at-least-32-characters
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001/api/v1
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +34,10 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - run: npm run db:migrate:deploy
       - run: npm run db:generate
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test
+      - run: npm run test:e2e
+      - run: npm run build

@@ -6,10 +6,12 @@
     "build": "nest build",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "dev": "nest start --watch",
     "lint": "eslint \"src/**/*.ts\"",
     "start": "node dist/main.js",
-    "test": "vitest run",
+    "test": "vitest run --exclude src/e2e/**/*.e2e.spec.ts",
+    "test:e2e": "npm run build && vitest run src/e2e/production-hardening.e2e.spec.ts --testTimeout=30000",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

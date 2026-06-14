@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 14:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 15A:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -33,6 +33,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 14:
 - Step 12 CSV Import: guarded upload/preview/confirm/history endpoints, temporary parsed staging, atomic ledger confirmation, Import UI tab, and unit tests done.
 - Step 13 CSV Export: guarded export request/status/history/download endpoints, on-demand transaction CSV generation, signed download, Export UI tab, audit events, and unit tests done.
 - Step 14 Settings and Privacy: profile settings, password change, active session management, export shortcut, delete-account request intent flow, sanitized audit log view, migration, docs, unit tests, HTTP smoke, and visual smoke done.
+- Step 15A Production Hardening: API-level e2e/security smoke tests, Prisma migration deploy script, CI migration/e2e/build hardening, and limited docs/handoff updates done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -58,6 +59,7 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - CSV Import API/UI: account-statement upload, comma/semicolon detection, safe mapped preview, all-or-nothing confirmation, expiry cleanup, recent safe history, and imported transaction badge.
 - CSV Export API/UI: transaction CSV export requests, optional filters, short-lived signed downloads, safe export history, and audit events.
 - Settings and Privacy API/UI: profile update reuse, password change, active session list/revoke, data export shortcut, pending delete-account request, and sanitized audit log view.
+- Production hardening Step 15A: built-API HTTP e2e smoke tests for core flows, representative cross-user denial, revoked-session denial, audit sanitization, export/download privacy, and standard error shape.
 
 ## 5. Important Files
 
@@ -75,6 +77,8 @@ Backend:
 - `apps/api/src/modules/settings/*`
 - `apps/api/src/modules/audit/*`
 - `apps/api/src/modules/auth/*`
+- `apps/api/src/configure-app.ts`
+- `apps/api/src/e2e/production-hardening.e2e.spec.ts`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
 - `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
@@ -167,11 +171,10 @@ Docs:
 ## 7. Current Unfinished Work
 
 - Create-first-account onboarding flow polish.
-- Database-backed integration tests for user-owned authorization isolation.
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
-- Step 15 Production Hardening is not implemented yet.
+- Step 15B Production Hardening is not implemented yet: performance smoke, request ID/logging readiness, backup/restore verification docs, and broader documentation cleanup.
 
 ## 8. Known Bugs or Risks
 
@@ -357,16 +360,41 @@ Docs:
   - Human visual smoke passed:
     - Settings tab rendered through the web app using a real API-authenticated local session.
     - Profile, Security, Data Export, Delete Account, and Audit Log sections rendered without desktop horizontal overflow or incoherent overlap in top and bottom screenshots.
+- Final Step 15A Production Hardening implementation:
+  - Step 15A changes were implemented and validated in the working tree. Commit/push has not been performed in this session.
+  - Added `db:migrate:deploy` using `prisma migrate deploy`; CI now applies existing migrations against the test PostgreSQL service and does not use `prisma migrate dev`.
+  - Added `npm run test:e2e`, which builds the API and runs HTTP e2e/security smoke tests against a real built API process and PostgreSQL.
+  - Extracted narrow shared app setup into `configureApp` so production bootstrap and e2e-built API preserve `/api/v1`, CORS, `ValidationPipe`, and `ApiExceptionFilter` behavior.
+  - E2E/security coverage added:
+    - register/login/me/logout/revoked-session denial
+    - account creation, income/expense transaction creation, transfer creation
+    - dashboard, spending, cashflow, and net worth smoke
+    - CSV export request/status/download smoke and privacy assertions
+    - settings/privacy smoke for profile, sessions, delete-account request, and audit log
+    - representative cross-user denial for account, transaction, transfer, budget, and export/download
+    - audit metadata sanitization and standard invalid-input error shape
+  - CSV import multipart e2e, performance smoke, request ID/logging readiness, backup/restore docs, and monitoring docs remain deferred to Step 15B.
+  - No schema migration was added.
+  - Validation passed:
+    - `docker compose up -d postgres`
+    - `npm.cmd run db:migrate`
+    - `npm.cmd run db:generate`
+    - `npm.cmd run typecheck`
+    - `npm.cmd run lint`
+    - `npm.cmd run test`: API 100 tests, Web 7 tests
+    - `npm.cmd run test:e2e`: API e2e 4 tests
+    - `npm.cmd run db:migrate:deploy`
+    - `npm.cmd run build`
+    - `npx.cmd prisma migrate status --schema apps/api/prisma/schema.prisma`
+    - `npx.cmd prisma migrate diff --from-schema-datasource apps/api/prisma/schema.prisma --to-schema-datamodel apps/api/prisma/schema.prisma --script`: empty migration
 
 ## 9. Next Recommended Task
 
-Step 14 Settings and Privacy MVP is complete and validated in the working tree. Based on `docs/tasks/IMPLEMENTATION_ORDER.md`, the next recommended task is Step 15: Production Hardening.
+Step 15A Production Hardening is complete and validated in the working tree. The next recommended task is Step 15B Production Hardening.
 
-Confirmed Step 15 scope from `docs/tasks/IMPLEMENTATION_ORDER.md`:
-- e2e tests
-- security tests
+Confirmed deferred Step 15B scope:
 - performance checks
-- error monitoring
+- error monitoring/readiness
 - backup verification
 - documentation cleanup
 
@@ -378,15 +406,16 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Plan and implement Step 15: Production Hardening. Step 14 Settings and Privacy is complete.
+Plan Step 15B: Production Hardening. Step 15A e2e/security/CI hardening is complete.
 
 Requirements:
 - Use plan mode first.
-- Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build`.
+- Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, `npm.cmd run test:e2e`, and `npm.cmd run build`.
 - Do not implement bank sync, OCR, AI insight, attachments, shared finance, or investments.
 - Keep production hardening changes narrow and aligned with existing MVP contracts.
 - Keep all user-owned behavior scoped through the authenticated session.
 - Do not expose raw tokens, password hashes, financial notes, CSV contents, or other sensitive payloads in hardening surfaces.
-- Add e2e/security/performance/monitoring/backup/documentation hardening checks where applicable.
+- Do not redo Step 15A e2e/security/CI hardening unless fixing a narrow regression.
+- Plan Step 15B only: performance smoke, monitoring/readiness docs or minimal code, backup/restore verification, and documentation cleanup.
 - Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
 ```

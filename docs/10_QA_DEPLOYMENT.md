@@ -34,6 +34,10 @@ Testing layers:
 
 ## Required E2E Flows
 
+Step 15A adds API-level e2e/security smoke tests that start the built API,
+exercise it over HTTP against PostgreSQL, and clean up disposable test users.
+Browser e2e remains deferred.
+
 ### Flow 1: First User Setup
 
 - register
@@ -62,12 +66,17 @@ Minimum pipeline:
 
 ```txt
 install
-→ lint
+→ migrate deploy
+→ generate Prisma client
 → typecheck
-→ unit test
-→ integration test
+→ lint
+→ unit tests
+→ API e2e/security smoke tests
 → build
 ```
+
+CI must use `prisma migrate deploy` against the test PostgreSQL service. It must
+not use `prisma migrate dev` because CI must not create migrations.
 
 ## Environments
 
