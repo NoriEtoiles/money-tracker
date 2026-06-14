@@ -18,6 +18,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspace @money-tracker/api",
+    "test:performance": "npm run test:performance --workspace @money-tracker/api",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {

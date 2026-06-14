@@ -18,7 +18,7 @@ Money Tracker is a web-first, mobile-ready personal finance tracker. MVP scope i
 
 ## 3. Current Implementation Status
 
-Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 15A:
+Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 15B:
 - Step 1 Project Foundation: done.
 - Step 2 Auth Foundation: done.
 - Step 3 Onboarding/default data: partially done.
@@ -34,6 +34,7 @@ Completed through `docs/tasks/IMPLEMENTATION_ORDER.md` Step 15A:
 - Step 13 CSV Export: guarded export request/status/history/download endpoints, on-demand transaction CSV generation, signed download, Export UI tab, audit events, and unit tests done.
 - Step 14 Settings and Privacy: profile settings, password change, active session management, export shortcut, delete-account request intent flow, sanitized audit log view, migration, docs, unit tests, HTTP smoke, and visual smoke done.
 - Step 15A Production Hardening: API-level e2e/security smoke tests, Prisma migration deploy script, CI migration/e2e/build hardening, and limited docs/handoff updates done.
+- Step 15B Production Hardening: request ID/error correlation readiness, local-only performance smoke, backup/restore drill docs, safe logging/privacy docs, production checklist cleanup, and handoff update done.
 
 Migrations exist. Docker Desktop is now installed and Docker CLI/Compose commands work. PostgreSQL starts through Docker Compose, and the existing migrations apply successfully.
 
@@ -60,6 +61,7 @@ Migrations exist. Docker Desktop is now installed and Docker CLI/Compose command
 - CSV Export API/UI: transaction CSV export requests, optional filters, short-lived signed downloads, safe export history, and audit events.
 - Settings and Privacy API/UI: profile update reuse, password change, active session list/revoke, data export shortcut, pending delete-account request, and sanitized audit log view.
 - Production hardening Step 15A: built-API HTTP e2e smoke tests for core flows, representative cross-user denial, revoked-session denial, audit sanitization, export/download privacy, and standard error shape.
+- Production hardening Step 15B: safe `X-Request-Id` preservation/generation, response-header and error-body request ID correlation, local/manual performance smoke for core read/export endpoints, backup/restore drill documentation, and safe logging readiness documentation.
 
 ## 5. Important Files
 
@@ -78,7 +80,9 @@ Backend:
 - `apps/api/src/modules/audit/*`
 - `apps/api/src/modules/auth/*`
 - `apps/api/src/configure-app.ts`
+- `apps/api/src/common/request-id/request-id.ts`
 - `apps/api/src/e2e/production-hardening.e2e.spec.ts`
+- `apps/api/src/e2e/performance-smoke.e2e.spec.ts`
 - `apps/api/src/app.module.ts`
 - `apps/api/prisma/migrations/20260517050000_transfers/migration.sql`
 - `apps/api/prisma/migrations/20260517060000_budgets/migration.sql`
@@ -166,7 +170,11 @@ Docs:
 - Delete-account request validation requires current password plus exact phrase `DELETE MY ACCOUNT`, but neither value is stored or audited.
 - User-facing audit log responses are explicitly whitelist-sanitized and drop unknown/unsafe metadata, including secrets, tokens, raw URLs, server paths, notes, merchants, CSV content, raw request bodies, emails, password data, and arbitrary nested metadata.
 - Settings Data Export is only a UI shortcut to the existing Export tab; CSV Export core behavior was not changed.
-- Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before production hardening.
+- Step 15B request IDs preserve inbound `X-Request-Id` only when short, non-empty, and limited to letters, numbers, dots, underscores, and hyphens; unsafe values are replaced with generated `req_...` IDs.
+- Request IDs are returned on `X-Request-Id` response headers and standard API error bodies. They are operational correlation IDs only and must not contain tokens, raw URLs, query strings, user data, financial payloads, or secrets.
+- Step 15B deliberately did not add request logging middleware. Future request logging must stay sanitized: request ID, method, route/path without query string, status code, and latency only.
+- `npm run test:performance` is local/manual only and must not be added to CI unless a stable timing environment is introduced later.
+- Auth UI stores tokens in localStorage temporarily; acceptable for MVP scaffolding but should be revisited before public production launch.
 
 ## 7. Current Unfinished Work
 
@@ -174,7 +182,7 @@ Docs:
 - Transaction tags are not implemented; `transaction_tags` table is still deferred.
 - Refresh token endpoint/session renewal is not implemented yet.
 - Production-grade auth storage is not implemented.
-- Step 15B Production Hardening is not implemented yet: performance smoke, request ID/logging readiness, backup/restore verification docs, and broader documentation cleanup.
+- CSV import multipart e2e remains deferred.
 
 ## 8. Known Bugs or Risks
 
@@ -373,7 +381,7 @@ Docs:
     - settings/privacy smoke for profile, sessions, delete-account request, and audit log
     - representative cross-user denial for account, transaction, transfer, budget, and export/download
     - audit metadata sanitization and standard invalid-input error shape
-  - CSV import multipart e2e, performance smoke, request ID/logging readiness, backup/restore docs, and monitoring docs remain deferred to Step 15B.
+  - CSV import multipart e2e, performance smoke, request ID/logging readiness, backup/restore docs, and monitoring docs were deferred to Step 15B.
   - No schema migration was added.
   - Validation passed:
     - `docker compose up -d postgres`
@@ -387,16 +395,44 @@ Docs:
     - `npm.cmd run build`
     - `npx.cmd prisma migrate status --schema apps/api/prisma/schema.prisma`
     - `npx.cmd prisma migrate diff --from-schema-datasource apps/api/prisma/schema.prisma --to-schema-datamodel apps/api/prisma/schema.prisma --script`: empty migration
+- Final Step 15B Production Hardening implementation:
+  - Step 15B changes were implemented and validated in the working tree. Commit/push has not been performed in this session.
+  - Added request ID middleware/helper and CORS support:
+    - safe inbound `X-Request-Id` values are preserved
+    - missing or unsafe inbound values generate `req_...` IDs
+    - every response returns `X-Request-Id`
+    - standard API error bodies include the same `error.requestId`
+  - Added focused request ID e2e coverage for generated IDs, preserved safe inbound IDs, unsafe inbound fallback, response header behavior, and matching error-body request IDs.
+  - Added local/manual `npm run test:performance`; it builds the API, starts a built API process, seeds one disposable synthetic user with 1,200 transactions, checks broad thresholds for transaction list, dashboard, reports, and CSV export download, and cleans up by user id.
+  - Updated docs for request ID behavior, safe logging readiness without request logging middleware, local-only performance smoke, production checklist cleanup, and Docker Compose PostgreSQL backup/restore verification.
+  - Added `.local-backups/` to `.gitignore`; local dump files are sensitive and must not be committed.
+  - No schema migration was added, and `test:performance` was not added to CI.
+  - Validation passed:
+    - `docker compose up -d postgres`
+    - `npm.cmd run db:migrate`: already in sync
+    - `npm.cmd run db:generate`
+    - `npm.cmd run typecheck`
+    - `npm.cmd run lint`
+    - `npm.cmd run test`: API 100 tests, Web 7 tests
+    - `npm.cmd run test:e2e`: API e2e 8 tests
+    - `npm.cmd run test:performance`: API performance smoke 2 tests
+    - `npm.cmd run build`
+    - `npx.cmd prisma migrate status --schema apps/api/prisma/schema.prisma`: database schema up to date
+    - `npx.cmd prisma migrate diff --from-schema-datasource apps/api/prisma/schema.prisma --to-schema-datamodel apps/api/prisma/schema.prisma --script`: empty migration
+    - `git diff --check`: passed with CRLF normalization warnings only
+  - Backup/restore drill passed:
+    - `pg_dump` created a local custom-format dump through Docker Compose
+    - restore into temporary `money_tracker_restore_check` succeeded
+    - verification query `SELECT COUNT(*) FROM users;` returned `24`
+    - temporary restore database was dropped
+    - generated local/container dump files were removed after verification
 
 ## 9. Next Recommended Task
 
-Step 15A Production Hardening is complete and validated in the working tree. The next recommended task is Step 15B Production Hardening.
-
-Confirmed deferred Step 15B scope:
-- performance checks
-- error monitoring/readiness
-- backup verification
-- documentation cleanup
+Step 15B Production Hardening is complete and validated in the working tree.
+The next recommended task is to review MVP readiness gaps and choose the next
+small task, likely onboarding polish, transaction tags, refresh/session renewal,
+or production-grade auth storage.
 
 ## 10. Exact Prompt for Next Codex Session
 
@@ -406,16 +442,16 @@ Read AGENTS.md, README.md, docs/SESSION_HANDOFF.md, docs/03_DATABASE_SCHEMA.md, 
 Continue the Money Tracker MVP from the current repo state.
 
 Task:
-Plan Step 15B: Production Hardening. Step 15A e2e/security/CI hardening is complete.
+Continue after Step 15B Production Hardening. Step 15A and Step 15B are complete.
 
 Requirements:
 - Use plan mode first.
-- Verify `docker compose up -d postgres`, `npm.cmd run db:migrate`, `npm.cmd run db:generate`, `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, `npm.cmd run test:e2e`, and `npm.cmd run build`.
+- Verify current repo state with `git status` and inspect `docs/SESSION_HANDOFF.md`.
+- Choose one small next MVP readiness task before implementation.
 - Do not implement bank sync, OCR, AI insight, attachments, shared finance, or investments.
-- Keep production hardening changes narrow and aligned with existing MVP contracts.
+- Keep changes narrow and aligned with existing MVP contracts.
 - Keep all user-owned behavior scoped through the authenticated session.
-- Do not expose raw tokens, password hashes, financial notes, CSV contents, or other sensitive payloads in hardening surfaces.
-- Do not redo Step 15A e2e/security/CI hardening unless fixing a narrow regression.
-- Plan Step 15B only: performance smoke, monitoring/readiness docs or minimal code, backup/restore verification, and documentation cleanup.
-- Run npm.cmd run db:generate, npm.cmd run typecheck, npm.cmd run lint, npm.cmd run test, and npm.cmd run build.
+- Do not expose raw tokens, password hashes, financial notes, CSV contents, or other sensitive payloads.
+- Do not redo Step 15A/15B hardening unless fixing a narrow regression.
+- Run relevant validation for the selected task, at minimum `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run test`, and `npm.cmd run build` when code changes.
 ```

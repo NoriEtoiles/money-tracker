@@ -65,8 +65,18 @@ type DownloadUrlInspection = {
   isPresent: boolean;
 };
 
+type ApiErrorResponse = {
+  error: {
+    code: string;
+    details: unknown[];
+    message: string;
+    requestId: string;
+  };
+};
+
 const runId = `e2e-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const password = "CorrectHorseBattery123!";
+const safeRequestIdPattern = /^[A-Za-z0-9._-]{1,64}$/;
 
 let baseUrl = "";
 let apiOutput = "";
@@ -514,7 +524,7 @@ describe("Step 15A API production hardening", () => {
 
   it("returns the standard error shape for invalid input", async () => {
     const user = await registerAndLogin("invalid-input");
-    const response = await request("/accounts", {
+    const response = await request<ApiErrorResponse>("/accounts", {
       body: {
         currency: "IDR",
         extra: "forbidden",
@@ -527,14 +537,82 @@ describe("Step 15A API production hardening", () => {
     });
 
     expect(response.status).toBe(400);
+    const responseRequestId = response.headers.get("x-request-id");
+
+    expect(responseRequestId).toEqual(expect.stringMatching(safeRequestIdPattern));
     expect(response.body).toEqual({
       error: {
         code: "VALIDATION_ERROR",
         details: expect.any(Array),
         message: expect.any(String),
-        requestId: null
+        requestId: responseRequestId
       }
     });
+  });
+
+  it("generates request IDs for successful responses", async () => {
+    const response = await request("/health");
+    const requestId = response.headers.get("x-request-id");
+
+    expect(response.status).toBe(200);
+    expect(requestId).toEqual(expect.stringMatching(/^req_[A-Za-z0-9._-]+$/));
+  });
+
+  it("preserves safe inbound request IDs", async () => {
+    const inboundRequestId = `client-${runId}`;
+    const response = await request("/health", {
+      headers: {
+        Origin: "http://localhost:3000",
+        "X-Request-Id": inboundRequestId
+      }
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-request-id")).toBe(inboundRequestId);
+    expect(response.headers.get("access-control-expose-headers")).toContain("X-Request-Id");
+  });
+
+  it("replaces unsafe inbound request IDs", async () => {
+    const unsafeRequestIds = [
+      "bad /token?x=1",
+      "a".repeat(65)
+    ];
+
+    for (const unsafeRequestId of unsafeRequestIds) {
+      const response = await request("/health", {
+        headers: {
+          "X-Request-Id": unsafeRequestId
+        }
+      });
+      const responseRequestId = response.headers.get("x-request-id");
+
+      expect(response.status).toBe(200);
+      expect(responseRequestId).not.toBe(unsafeRequestId);
+      expect(responseRequestId).toEqual(expect.stringMatching(/^req_[A-Za-z0-9._-]+$/));
+    }
+  });
+
+  it("uses the same safe request ID in error headers and bodies", async () => {
+    const user = await registerAndLogin("request-id-error");
+    const inboundRequestId = `error-${runId}`;
+    const response = await request<ApiErrorResponse>("/accounts", {
+      body: {
+        currency: "IDR",
+        extra: "forbidden",
+        initialBalance: "10.0000",
+        name: "Invalid Account",
+        type: "cash"
+      },
+      headers: {
+        "X-Request-Id": inboundRequestId
+      },
+      method: "POST",
+      token: user.token
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("x-request-id")).toBe(inboundRequestId);
+    expect(response.body.error.requestId).toBe(inboundRequestId);
   });
 });
 

@@ -96,6 +96,7 @@ Default local URLs:
 - `npm run lint` runs ESLint for all workspaces.
 - `npm run test` runs Vitest for all workspaces.
 - `npm run test:e2e` builds the API and runs API-level e2e/security smoke tests against PostgreSQL.
+- `npm run test:performance` runs local-only API performance smoke checks against PostgreSQL. It is intentionally not part of CI.
 - `npm run build` builds all workspaces.
 
 ## Current Foundation
@@ -131,6 +132,8 @@ This foundation includes:
 - settings/privacy UI with profile updates, password change, active session management, export shortcut, delete-account request, and sanitized audit log view
 - lint/typecheck/test scripts
 - API-level e2e/security smoke tests for core MVP flows and privacy regressions
+- request ID correlation readiness with safe `X-Request-Id` preservation/generation on API responses and error bodies
+- local-only performance smoke checks for core read/export paths
 - CI workflow with Prisma migration deploy, unit tests, e2e tests, and build
 
 Core endpoints:
@@ -190,12 +193,15 @@ Core endpoints:
 - `GET /api/v1/exports/{exportId}`
 - `GET /api/v1/exports/{exportId}/download`
 
-## Next Recommended Task
+## Production Readiness Notes
 
-Step 15A Production Hardening is complete. Continue with Step 15B:
-- performance checks
-- error monitoring readiness
-- backup verification
-- documentation cleanup
+Step 15B production readiness work adds request ID correlation, local-only
+performance smoke checks, backup/restore drill documentation, and safe
+logging/privacy guidance. Request logging middleware and paid monitoring vendor
+integration are intentionally deferred.
+
+For local backup/restore verification, see `docs/10_QA_DEPLOYMENT.md`. Database
+dumps contain sensitive financial data and must stay in ignored local paths such
+as `.local-backups/`.
 
 Keep each task small, tested, and aligned with `AGENTS.md`.

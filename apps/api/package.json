@@ -12,6 +12,7 @@
     "start": "node dist/main.js",
     "test": "vitest run --exclude src/e2e/**/*.e2e.spec.ts",
     "test:e2e": "npm run build && vitest run src/e2e/production-hardening.e2e.spec.ts --testTimeout=30000",
+    "test:performance": "npm run build && vitest run src/e2e/performance-smoke.e2e.spec.ts --testTimeout=60000",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

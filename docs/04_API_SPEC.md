@@ -28,6 +28,18 @@
 }
 ```
 
+## Request IDs
+
+- Clients may send `X-Request-Id` with a short, non-empty identifier containing
+  only letters, numbers, dots, underscores, and hyphens.
+- Unsafe inbound values are ignored, including values with spaces, slashes,
+  query characters, CR/LF, or excessive length.
+- The API generates a safe request ID when the header is missing or unsafe.
+- Every API response includes `X-Request-Id`; API error bodies include the same
+  value as `error.requestId`.
+- Request IDs are for operational correlation only. They must not contain
+  tokens, secrets, user data, raw URLs, or financial payloads.
+
 ## Auth
 
 ### POST `/api/v1/auth/register`

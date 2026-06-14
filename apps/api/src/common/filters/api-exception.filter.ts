@@ -5,6 +5,12 @@ import {
   HttpException,
   HttpStatus
 } from "@nestjs/common";
+import {
+  generateRequestId,
+  getSafeRequestIdFromHeaders,
+  RequestWithRequestId,
+  requestIdHeaderName
+} from "../request-id/request-id";
 
 type ErrorDetail = {
   field?: string;
@@ -16,27 +22,35 @@ type HttpErrorResponse = {
   error?: string;
 };
 
+type ErrorResponseWriter = {
+  setHeader: (name: string, value: string) => void;
+  status: (status: number) => {
+    json: (body: unknown) => void;
+  };
+};
+
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
-    const response = context.getResponse();
-    const request = context.getRequest<{ headers?: Record<string, string | string[] | undefined> }>();
+    const response = context.getResponse<ErrorResponseWriter>();
+    const request = context.getRequest<RequestWithRequestId>();
     const status = exception instanceof HttpException
       ? exception.getStatus()
       : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const responseBody = exception instanceof HttpException ? exception.getResponse() : undefined;
     const normalized = this.normalizeResponse(responseBody, status);
-    const requestIdHeader = request.headers?.["x-request-id"];
-    const requestId = Array.isArray(requestIdHeader) ? requestIdHeader[0] : requestIdHeader;
+    const requestId = request.requestId ?? getSafeRequestIdFromHeaders(request.headers) ?? generateRequestId();
+
+    response.setHeader(requestIdHeaderName, requestId);
 
     response.status(status).json({
       error: {
         code: normalized.code,
         message: normalized.message,
         details: normalized.details,
-        requestId: requestId ?? null
+        requestId
       }
     });
   }

@@ -36,6 +36,32 @@ Rules:
 - Do not log sensitive financial payloads.
 - Limit attachment file type and size.
 
+### Request IDs and Error Correlation
+
+The API returns a safe `X-Request-Id` response header and includes the same
+value in standard error responses. A client-provided `X-Request-Id` is preserved
+only when it is short, non-empty, and limited to simple identifier characters.
+Unsafe values, including raw URLs, query strings, signed tokens, whitespace,
+slashes, CR/LF, or very long values, are replaced with a generated request ID.
+
+Request IDs are safe correlation metadata only. They must never include auth
+tokens, cookies, passwords, financial notes, merchant text, CSV content, raw
+request/response bodies, secrets, server paths, or other sensitive data.
+
+### Safe Logging Readiness
+
+Step 15B does not add request logging middleware. If request logging is added
+later, keep it minimal and sanitized:
+
+- Allowed fields: request ID, HTTP method, route/path without query string,
+  response status code, and latency.
+- Forbidden fields: full URLs with query strings, signed export tokens, auth
+  headers, cookies, passwords, password reset/change fields, CSV contents,
+  import CSV raw content, financial notes, merchant text, raw request bodies,
+  raw response bodies, secrets, and server paths.
+- Platform or reverse-proxy access logs must be configured to avoid query-string
+  and header leakage before handling production financial data.
+
 ### Audit Logs
 
 Audit these events:
@@ -75,6 +101,12 @@ Recommended:
 - soft deleted data retained for recovery window,
 - export files expire automatically,
 - deleted account data hard-deleted after configured retention window unless legal requirement says otherwise.
+
+## Known MVP Security Limitations
+
+- The web MVP still stores auth tokens in localStorage. This is acceptable for
+  local MVP scaffolding, but production hardening should move toward a stronger
+  session storage strategy before public launch.
 
 ## Attachment Security
 
